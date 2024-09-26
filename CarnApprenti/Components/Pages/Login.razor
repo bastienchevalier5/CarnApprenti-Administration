@@ -1,0 +1,66 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.DependencyInjection
+@using System.Net.Http
+@using System.Net.Http.Json
+@using System.Threading.Tasks
+@inject NavigationManager Navigation
+@inject IHttpClientFactory HttpClientFactory
+
+<EditForm class="" Model="loginModel" OnValidSubmit="HandleLogin">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="login_container">
+        <h1 class="text-reglages">Connexion</h1>
+        @if (errorMessage != null)
+        {
+            <h3 style="color: red;">@errorMessage</h3>
+        }
+        <label for="identifiant" class="">Identifiant :</label><br>
+        <InputText id="identifiant" @bind-Value="loginModel.Identifiant" required /><br>
+        <label for="mdp" class="">Mot de passe :</label><br>
+        <InputText id="mdp" @bind-Value="loginModel.Mdp" required /><br>
+        <button type="submit" class="submit">Se connecter</button>
+    </div>
+</EditForm>
+
+@code {
+    private LoginModel loginModel = new LoginModel();
+    private string errorMessage;
+
+    private async Task HandleLogin()
+    {
+            var httpClient = HttpClientFactory.CreateClient();
+            var response = await httpClient.PostAsJsonAsync("api/login", loginModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var loginResult = await response.Content.ReadFromJsonAsync<LoginResult>();
+                if (loginResult.Connected)
+                {
+                    Navigation.NavigateTo(loginResult.RedirectUrl);
+                }
+                else
+                {
+                    errorMessage = "Identifiant ou mot de passe incorrect";
+                }
+            }
+            else
+            {
+                errorMessage = "Erreur lors de la connexion";
+            }
+        }
+
+    public class LoginModel
+    {
+        public string Identifiant { get; set; }
+        public string Mdp { get; set; }
+    }
+
+    public class LoginResult
+    {
+        public bool Connected { get; set; }
+        public string RedirectUrl { get; set; }
+    }
+}
