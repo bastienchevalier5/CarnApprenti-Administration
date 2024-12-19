@@ -1,0 +1,131 @@
+﻿@page "/users"
+@inject NavigationManager Navigation
+@inject DatabaseService DatabaseService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject IJSRuntime js
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+<h1>Gestion des utilisateurs</h1>
+
+<div class="container_bouton">
+    <a href="add_user" class="btn btn-primary">Création d'utilisateur</a>
+    <a href="import_apprenants" class="btn btn-primary">Importer des apprenants</a>
+</div>
+
+@if (users == null)
+{
+    <p>Chargement des utilisateurs...</p>
+    <p>@errorMessage</p>
+}
+else if (users.Count == 0)
+{
+    <p>Aucun utilisateur trouvé.</p>
+}
+else
+{
+    <table class="users" border="1">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Prénom</th>
+                <th>Mail</th>
+                <th>Role</th>
+                <th>Groupe</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in users)
+            {
+                var roles = userRoles.ContainsKey(user.Id) ? userRoles[user.Id] : new List<string> { "Aucun rôle" };
+                <tr>
+                    <td>@user.Nom</td>
+                    <td>@user.Prenom</td>
+                    <td>@user.Email</td>
+                    <td>
+                        @foreach (var role in roles)
+                        {
+                            <span>@role</span>
+                            <br />
+                        }
+                    </td>
+                    <td>@user.Groupe?.Nom</td>
+                    <td>
+                        @if (user.Id != currentUserId)
+                        {
+                            <a href="edit_user/@user.Id" class="btn btn-warning">Modifier</a>
+                        }
+                        @if (user.Id != currentUserId)
+                        {
+                            <button class="btn btn-danger" @onclick="() => DeleteUser(user.Id)">Supprimer</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<LivretApprentissageContext.User>? users;
+    private ulong? currentUserId;
+    private string errorMessage;
+    private Dictionary<ulong, List<string>> userRoles = new Dictionary<ulong, List<string>>(); // Dictionnaire global
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Vérification de session
+            currentUserId = await SessionStorage.GetItemAsync<ulong?>("Id");
+
+            if (currentUserId == null)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            // Chargement des utilisateurs
+            users = await DatabaseService.GetUsersAsync();  // Récupérer les utilisateurs
+            if (users == null)
+            {
+                errorMessage = "Aucun utilisateur trouvé.";
+                return;
+            }
+
+            // Chargement des rôles des utilisateurs
+            foreach (var user in users)
+            {
+                var role = await DatabaseService.GetUserRolesAsync(user.Id);  // Récupère un rôle par utilisateur
+                userRoles[user.Id] = new List<string> { role };  // Enregistrer le rôle de l'utilisateur dans le dictionnaire
+            }
+
+        }
+        catch (Exception ex)
+        {
+            // Gestion des erreurs
+            errorMessage = $"Une erreur s'est produite lors du chargement des utilisateurs : {ex.Message}";
+        }
+    }
+
+    private async Task DeleteUser(ulong userId)
+    {
+        var confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer cet utilisateur ?");
+        if (confirmed)
+        {
+            try
+            {
+                await DatabaseService.DeleteUserAsync(userId);
+                users = await DatabaseService.GetUsersAsync(); // Recharger la liste après suppression
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Une erreur s'est produite lors de la suppression de l'utilisateur : {ex.Message}";
+            }
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("..");
+    }
+}

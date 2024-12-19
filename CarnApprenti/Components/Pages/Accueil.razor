@@ -1,0 +1,86 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Components.Forms
+@using BCrypt.Net
+@using static CarnApprenti.LivretApprentissageContext
+@inject NavigationManager Navigation
+@inject DatabaseService DatabaseService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <h2>Chargement en cours...</h2>
+    </div>
+}
+else if (Id.HasValue)
+{
+    <div class="text-center">
+        <h1>Bienvenue @nom @prenom </h1>
+        <h3>Rôle: @role</h3> <!-- Affichez le rôle ici -->
+        <button @onclick="Logout" class="btn btn-danger">Se déconnecter</button>
+    </div>
+
+    @if (role == "admin")
+    {
+        <div>
+            <a class="btn btn-primary" href="users">Gestion des utilisateurs</a>
+            <a class="btn btn-primary" href="groupes">Gestion des groupes</a>
+        </div>
+    }
+    else if (role == "qualite")
+    {
+        <div>
+            <h3>Section qualité</h3>
+            <!-- Affichez des éléments spécifiques au rôle Qualité -->
+        </div>
+    }
+}
+else
+{
+    <div class="text-center">
+        <h1>Bienvenue sur l'administration de CarnApprenti</h1>
+        <a class="btn btn-primary" href="login">Se connecter</a>
+    </div>
+}
+
+@code {
+    private string? nom;
+    private string? prenom;
+    private string? role;
+    private ulong? Id;
+    private List<User> users = new();
+    private string errorMessage = string.Empty;
+    private bool isLoading = true; // Indique que la page est en cours de chargement
+
+
+    // Récupération des informations de session + chargement des utilisateurs
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true; // Le chargement commence
+
+        // Récupération des informations de session
+        nom = await SessionStorage.GetItemAsync<string>("Nom");
+        prenom = await SessionStorage.GetItemAsync<string>("Prenom");
+        role = await SessionStorage.GetItemAsync<string>("Role"); // Récupère le rôle
+        Id = await SessionStorage.GetItemAsync<ulong?>("Id");
+
+        Console.WriteLine($"Session : Nom={nom}, Prénom={prenom}, Id={Id}, Role={role}");
+
+        isLoading = false; // Le chargement est terminé
+    }
+
+    private async Task Logout()
+    {
+        Console.WriteLine("Logout function triggered");
+
+        // Effacer toutes les données de session
+        await SessionStorage.ClearAsync();
+
+        // Tester si la session est bien effacée
+        var test = await SessionStorage.GetItemAsync<string>("Nom");
+        Console.WriteLine(test == null ? "SessionStorage cleared" : "SessionStorage not cleared");
+
+        // Rediriger vers la page de connexion
+        Navigation.NavigateTo("/login");
+    }
+}

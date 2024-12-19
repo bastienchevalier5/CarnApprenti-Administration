@@ -1,0 +1,191 @@
+﻿@page "/add_user"
+@inject NavigationManager Navigation
+@inject DatabaseService DatabaseService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject IJSRuntime js
+@using BCrypt.Net
+@using System.Text.Json
+@using System.Text
+@using System.Security.Cryptography
+@using static CarnApprenti.LivretApprentissageContext
+
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+<h1>Ajouter un utilisateur</h1>
+
+@if (errorMessage != null)
+{
+    <p class="text-danger">@errorMessage</p>
+}
+
+<div class="form-container">
+    <EditForm Model="@newUser" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-group">
+            <label for="Nom">Nom</label>
+            <InputText id="Nom" class="form-control" @bind-Value="newUser.Nom" />
+        </div>
+
+        <div class="form-group">
+            <label for="Prenom">Prénom</label>
+            <InputText id="Prenom" class="form-control" @bind-Value="newUser.Prenom" />
+        </div>
+
+        <div class="form-group">
+            <label for="Email">Email</label>
+            <InputText id="Email" class="form-control" @bind-Value="newUser.Email" />
+        </div>
+
+        <div class="form-group">
+            <label for="Role">Rôle</label>
+            <InputSelect id="Role" class="form-control" @bind-Value="selectedRole">
+                <option value="">Sélectionner un rôle</option>
+                @foreach (var role in roles)
+                {
+                    <option value="@role">@role</option>
+                }
+            </InputSelect>
+        </div>
+
+        @if (selectedRole == "tuteur")
+        {
+            <div class="form-group">
+                <label for="Tuteur">Sélectionner un apprenant</label>
+                <InputSelect id="Tuteur" class="form-control" @bind-Value="selectedApprenantId">
+                    <option value="">Sélectionner un apprenant</option>
+                    @foreach (var apprenant in apprenants)
+                    {
+                        <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>
+                    }
+                </InputSelect>
+            </div>
+        }
+
+        @if (selectedRole == "apprenant" || selectedRole == "referent")
+        {
+            <div class="form-group">
+                <label for="Groupe">Groupe</label>
+                <InputSelect id="Groupe" class="form-control" @bind-Value="selectedGroupeId">
+                    <option value="">Sélectionner un groupe</option>
+                    @foreach (var groupe in groupes)
+                    {
+                        <option value="@groupe.Id">@groupe.Nom</option>
+                    }
+                </InputSelect>
+            </div>
+        }
+
+        <div class="form-group">
+            <label for="Password">Mot de passe</label>
+            <InputText id="Password" class="form-control" type="password" @bind-Value="newUser.Password" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Ajouter</button>
+    </EditForm>
+</div>
+
+@code {
+    private User newUser = new User();
+    private string errorMessage;
+    private List<string> roles = new List<string> { "admin", "qualite", "referent", "apprenant", "tuteur" };
+    private List<Groupe> groupes = new List<Groupe>();
+    private List<User> apprenants = new List<User>();
+    private string selectedRole;
+    private ulong? selectedGroupeId;
+    private ulong? selectedApprenantId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            groupes = await DatabaseService.GetGroupesAsync();
+            apprenants = await DatabaseService.GetUsersByRoleAsync("Apprenant");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors du chargement des données : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException}";
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            // Set the proper IDs based on role
+            if (selectedRole == "tuteur")
+            {
+                newUser.ApprenantId = selectedApprenantId;
+            }
+
+            if (selectedRole == "apprenant" || selectedRole == "referent")
+            {
+                newUser.GroupeId = selectedGroupeId;
+            }
+
+            // Set timestamps
+            newUser.CreatedAt = DateTime.UtcNow;
+            newUser.UpdatedAt = DateTime.UtcNow;
+
+            // Encrypt password
+            newUser.Password = EncryptLaravelPassword(newUser.Password, "base64:COwLBPHHHx0xJdy/CAIMVbO4VbgkffA/0QntdefwruQ=");
+
+            // Add user to database
+            await DatabaseService.AddUserAsync(newUser);
+
+            // Assign role
+            if (!string.IsNullOrEmpty(selectedRole))
+            {
+                await DatabaseService.AssignRoleToUserAsync(newUser.Id, selectedRole);
+            }
+
+            Navigation.NavigateTo("/users");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors de l'ajout de l'utilisateur : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException?.Message}\n{ex.InnerException?.StackTrace}";
+        }
+    }
+
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/users");
+    }
+
+    public static string EncryptLaravelPassword(string plainText, string laravelAppKey)
+    {
+        try
+        {
+            byte[] keyBytes = Convert.FromBase64String(laravelAppKey.Replace("base64:", ""));
+            using var aes = Aes.Create();
+            aes.Key = keyBytes;
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.PKCS7;
+            aes.GenerateIV();
+            byte[] iv = aes.IV;
+
+            using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+            using var msEncrypt = new MemoryStream();
+            using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+            using var swEncrypt = new StreamWriter(csEncrypt);
+            swEncrypt.Write(plainText);
+            swEncrypt.Close();
+
+            byte[] cipherText = msEncrypt.ToArray();
+
+            var encryptedParts = new Dictionary<string, string>
+            {
+                { "iv", Convert.ToBase64String(iv) },
+                { "value", Convert.ToBase64String(cipherText) }
+            };
+
+            string jsonString = JsonSerializer.Serialize(encryptedParts);
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Erreur de chiffrement : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException}");
+        }
+    }
+}

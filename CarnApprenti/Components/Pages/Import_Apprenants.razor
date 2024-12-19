@@ -1,0 +1,321 @@
+﻿@page "/import_apprenants"
+@inject NavigationManager Navigation
+@inject DatabaseService DatabaseService
+@inject IJSRuntime js
+@using System.IO
+@using CsvHelper
+@using CsvHelper.Configuration
+@using System.Globalization
+@using System.Collections.Generic
+@using System.Linq
+@using System.Security.Cryptography
+@using System.Text
+@using System.Text.Json
+@using CsvHelper.Configuration.Attributes
+@using static CarnApprenti.LivretApprentissageContext
+
+<h1>Importer des apprenants</h1>
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+
+<div class="form-container">
+    <InputFile OnChange="HandleFileSelected" accept=".csv" />
+    @if (errorMessage != null)
+    {
+        <p class="text-danger">@errorMessage</p>
+    }
+
+    @if (successMessage != null)
+    {
+        <p class="text-success">@successMessage</p>
+    }
+
+    @if (csvData != null)
+    {
+        <h3>Récapitulatif de l'importation</h3>
+        <table class="table text-white">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Prénom</th>
+                    <th>Email</th>
+                    <th>Nom du groupe</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in csvData)
+                {
+                    <tr>
+                        <td>@row.Nom</td>
+                        <td>@row.Prenom</td>
+                        <td>@row.Email</td>
+                        <td>@row.NomGroupe</td>
+                        <td>@row.Statut</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <button class="btn btn-success" @onclick="ImportData">Importer</button>
+        <button class="btn btn-danger" @onclick="CancelImport">Annuler</button>
+    }
+</div>
+
+@code {
+    private List<ApprenantImportModel> csvData;
+    private string errorMessage;
+    private string successMessage;
+
+
+    public class ApprenantImportModel
+    {
+        [Name("Nom")]
+        public string Nom { get; set; }
+
+        [Name("Prenom")]
+        public string Prenom { get; set; }
+
+        [Name("Email")]
+        public string Email { get; set; }
+
+        [Name("Mot De Passe")]
+        public string MotDePasse { get; set; }
+
+        [Name("Nom du Groupe")]
+        public string NomGroupe { get; set; }
+
+        public string Statut { get; set; } // "Succès" ou "Erreur"
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            if (file != null)
+            {
+                var fileContent = new MemoryStream();
+                await file.OpenReadStream().CopyToAsync(fileContent);
+                fileContent.Seek(0, SeekOrigin.Begin);
+
+                var detectedEncoding = DetectFileEncoding(fileContent);
+                var reader = new StreamReader(fileContent, detectedEncoding);
+                var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+                    {
+                        HasHeaderRecord = true,
+                        MissingFieldFound = null // Ignorer les champs manquants
+                    };
+
+                var csv = new CsvReader(reader, config);
+
+                // Lire les en-têtes du fichier CSV
+                var headers = new List<string>();
+                csv.Read();
+                csv.ReadHeader();
+                foreach (var header in csv.HeaderRecord)
+                {
+                    headers.Add(header);
+                }
+
+                // Si les en-têtes ne correspondent pas, afficher un message d'erreur et annuler
+                var expectedHeaders = new List<string> { "Nom", "Prenom", "Email", "Mot De Passe", "Nom du Groupe" };
+                if (!headers.SequenceEqual(expectedHeaders))
+                {
+                    errorMessage = "Le fichier n'est pas au bon format. Vérifiez les en-têtes du fichier CSV. Ils doivent être sous la forme Nom/Prénom/Email/Mot de Passe/Nom du Groupe";
+                    return;
+                }
+
+                var records = csv.GetRecords<ApprenantImportModel>().ToList();
+
+                // Vérification du format CSV
+                if (records.Any(r => string.IsNullOrEmpty(r.Nom) || string.IsNullOrEmpty(r.Prenom) ||
+                                      string.IsNullOrEmpty(r.Email) || string.IsNullOrEmpty(r.MotDePasse) ||
+                                      string.IsNullOrEmpty(r.NomGroupe)))
+                {
+                    errorMessage = "Le fichier CSV contient des données manquantes ou mal formatées.";
+                    return;
+                }
+
+                // Vérifier si les apprenants existent déjà
+                var existingEmails = await DatabaseService.GetAllUserEmailsAsync();
+                foreach (var record in records)
+                {
+                    if (existingEmails.Contains(record.Email))
+                    {
+                        record.Statut = "Erreur: Apprenant existe déjà";
+                    }
+                    else if (!IsValidEmail(record.Email))
+                    {
+                        record.Statut = "Erreur: Email invalide";
+                    }
+                    else
+                    {
+                        record.Statut = "Succès";
+                    }
+                }
+
+                csvData = records;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors du traitement du fichier : {ex.Message}";
+        }
+    }
+
+    private bool IsValidEmail(string email)
+    {
+        try
+        {
+            var mailAddress = new System.Net.Mail.MailAddress(email);
+            return mailAddress.Address == email;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task ImportData()
+    {
+        if (csvData == null || !csvData.Any()) return;
+
+        try
+        {
+            var groupeIds = await DatabaseService.GetGroupesAsync();  // Charger les groupes disponibles
+            var apprenantsToImport = new List<LivretApprentissageContext.User>();
+
+            foreach (var row in csvData.Where(r => r.Statut == "Succès"))
+            {
+                var groupe = groupeIds.FirstOrDefault(g => g.Nom == row.NomGroupe);
+                if (groupe != null)
+                {
+                    var encryptedPassword = EncryptLaravelPassword(row.MotDePasse, "base64:COwLBPHHHx0xJdy/CAIMVbO4VbgkffA/0QntdefwruQ=");
+
+                    var newApprenant = new LivretApprentissageContext.User
+                        {
+                            Nom = row.Nom,
+                            Prenom = row.Prenom,
+                            Email = row.Email,
+                            Password = encryptedPassword, // Mot de passe chiffré avec la méthode Laravel
+                            GroupeId = groupe.Id
+                        };
+
+                    apprenantsToImport.Add(newApprenant);
+                }
+                else
+                {
+                    row.Statut = "Erreur: Groupe introuvable";
+                }
+            }
+
+            // Si des apprenants sont valides, les ajouter à la base de données
+            if (apprenantsToImport.Any())
+            {
+                foreach (var apprenant in apprenantsToImport)
+                {
+                    await DatabaseService.AddUserAsync(apprenant);
+                    // Assigner le rôle "apprenant"
+                    await DatabaseService.AssignRoleToUserAsync(apprenant.Id, "apprenant");
+                }
+
+                successMessage = apprenantsToImport.Count == 1 ? "1 apprenant a été importé avec succès." : $"{apprenantsToImport.Count} apprenants ont été importés avec succès.";
+            }
+            else
+            {
+                errorMessage = "Aucun apprenant valide à importer.";
+            }
+
+            // Réinitialiser la liste CSV après importation
+            csvData = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors de l'importation des apprenants : {ex.Message}";
+        }
+    }
+
+    private void CancelImport()
+    {
+        // Annuler l'importation et réinitialiser les données
+        csvData = null;
+        errorMessage = null;
+    }
+
+    private string EncryptLaravelPassword(string plainText, string laravelAppKey)
+    {
+        try
+        {
+            byte[] keyBytes = Convert.FromBase64String(laravelAppKey.Replace("base64:", ""));
+            using var aes = Aes.Create();
+            aes.Key = keyBytes;
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.PKCS7;
+            aes.GenerateIV();
+            byte[] iv = aes.IV;
+
+            using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+            using var msEncrypt = new MemoryStream();
+            using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+            using var swEncrypt = new StreamWriter(csEncrypt);
+            swEncrypt.Write(plainText);
+            swEncrypt.Close();
+
+            byte[] cipherText = msEncrypt.ToArray();
+
+            var encryptedParts = new Dictionary<string, string>
+            {
+                { "iv", Convert.ToBase64String(iv) },
+                { "value", Convert.ToBase64String(cipherText) }
+            };
+
+            string jsonString = JsonSerializer.Serialize(encryptedParts);
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Erreur de chiffrement : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException}");
+        }
+    }
+
+    public sealed class ApprenantImportMap : ClassMap<ApprenantImportModel>
+    {
+        public ApprenantImportMap()
+        {
+            Map(m => m.Nom).Name("Nom");
+            Map(m => m.Prenom).Name("Prenom");
+            Map(m => m.Email).Name("Email");
+            Map(m => m.MotDePasse).Name("Mot De Passe");
+            Map(m => m.NomGroupe).Name("Nom du Groupe");
+        }
+    }
+
+    private Encoding DetectFileEncoding(Stream stream)
+    {
+        // Lire les 3 premiers octets du fichier
+        var preamble = new byte[3];
+        stream.Read(preamble, 0, 3);
+        stream.Seek(0, SeekOrigin.Begin); // Réinitialiser la position du flux
+
+        // UTF-8 avec BOM (EF BB BF)
+        if (preamble[0] == 0xEF && preamble[1] == 0xBB && preamble[2] == 0xBF)
+        {
+            return Encoding.UTF8;
+        }
+
+        // UTF-16 LE avec BOM (FF FE) ou UTF-16 BE (FE FF) - Non nécessaire dans la plupart des cas
+        if ((preamble[0] == 0xFF && preamble[1] == 0xFE) || (preamble[0] == 0xFE && preamble[1] == 0xFF))
+        {
+            return Encoding.Unicode;
+        }
+
+        // Par défaut, retour à l'encodage Windows-1252 (ANSI)
+        return Encoding.GetEncoding("Windows-1252");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/users");
+    }
+
+}

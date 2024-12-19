@@ -1,0 +1,212 @@
+﻿@page "/edit_user/{userId}"
+@inject NavigationManager Navigation
+@inject DatabaseService DatabaseService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject IJSRuntime js
+@using BCrypt.Net
+@using System.Text.Json
+@using System.Text
+@using System.Security.Cryptography
+@using static CarnApprenti.LivretApprentissageContext
+
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+<h1>Modifier un utilisateur</h1>
+
+@if (errorMessage != null)
+{
+    <p class="text-danger">@errorMessage</p>
+}
+
+<div class="form-container">
+    <EditForm Model="@user" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+       
+        <div class="form-group">
+            <label for="Nom">Nom</label>
+            <InputText id="Nom" class="form-control" @bind-Value="user.Nom" />
+        </div>
+
+        <div class="form-group">
+            <label for="Prenom">Prénom</label>
+            <InputText id="Prenom" class="form-control" @bind-Value="user.Prenom" />
+        </div>
+
+        <div class="form-group">
+            <label for="Email">Email</label>
+            <InputText id="Email" class="form-control" @bind-Value="user.Email" />
+        </div>
+
+        <div class="form-group">
+            <label for="Role">Rôle</label>
+            <InputSelect id="Role" class="form-control" @bind-Value="selectedRole">
+                <option value="">Sélectionner un rôle</option>
+                @foreach (var role in roles)
+                {
+                    <option value="@role">@role</option>
+                }
+            </InputSelect>
+        </div>
+
+        @if (selectedRole == "tuteur")
+        {
+            <div class="form-group">
+                <label for="Tuteur">Sélectionner un apprenant</label>
+                <InputSelect id="Tuteur" class="form-control" @bind-Value="selectedApprenantId">
+                    <option value="">Sélectionner un apprenant</option>
+                    @foreach (var apprenant in apprenants)
+                    {
+                        <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>
+                    }
+                </InputSelect>
+            </div>
+        }
+
+        @if (selectedRole == "apprenant" || selectedRole == "referent")
+        {
+            <div class="form-group">
+                <label for="Groupe">Groupe</label>
+                <InputSelect id="Groupe" class="form-control" @bind-Value="selectedGroupeId">
+                    <option value="">Sélectionner un groupe</option>
+                    @foreach (var groupe in groupes)
+                    {
+                        <option value="@groupe.Id">@groupe.Nom</option>
+                    }
+                </InputSelect>
+            </div>
+        }
+
+        <!-- Nouveau mot de passe et confirmation -->
+        <div class="form-group">
+            <label for="NewPassword">Nouveau mot de passe</label>
+            <InputText id="NewPassword" class="form-control" type="password" @bind-Value="newPassword" />
+        </div>
+
+        <div class="form-group">
+            <label for="ConfirmPassword">Confirmer le mot de passe</label>
+            <InputText id="ConfirmPassword" class="form-control" type="password" @bind-Value="confirmPassword" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Modifier</button>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter] public string userId { get; set; }
+    private User user = new User();
+    private string errorMessage;
+    private List<string> roles = new List<string> { "admin", "qualite", "referent", "apprenant", "tuteur" };
+    private List<Groupe> groupes = new List<Groupe>();
+    private List<User> apprenants = new List<User>();
+    private string selectedRole;
+    private ulong? selectedGroupeId;
+    private ulong? selectedApprenantId;
+
+    // Champs pour gérer le mot de passe
+    private string newPassword;
+    private string confirmPassword;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            groupes = await DatabaseService.GetGroupesAsync();
+            apprenants = await DatabaseService.GetUsersByRoleAsync("Apprenant");
+
+            // Récupérer l'utilisateur à éditer
+            user = await DatabaseService.GetUserByIdAsync(ulong.Parse(userId));
+            selectedRole = await DatabaseService.GetUserRolesAsync(user.Id);
+            selectedGroupeId = user.GroupeId;
+            selectedApprenantId = user.ApprenantId;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors du chargement des données : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException}";
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            // Mettre à jour les champs spécifiques au rôle
+            if (selectedRole == "tuteur")
+            {
+                user.ApprenantId = selectedApprenantId;
+            }
+
+            if (selectedRole == "apprenant" || selectedRole == "referent")
+            {
+                user.GroupeId = selectedGroupeId;
+            }
+
+            // Si un nouveau mot de passe est saisi et qu'il est confirmé, on le met à jour
+            if (!string.IsNullOrEmpty(newPassword))
+            {
+                if (newPassword != confirmPassword)
+                {
+                    errorMessage = "Les mots de passe ne correspondent pas.";
+                    return;
+                }
+
+                user.Password = EncryptLaravelPassword(newPassword, "base64:COwLBPHHHx0xJdy/CAIMVbO4VbgkffA/0QntdefwruQ=");
+            }
+
+            // Mettre à jour l'utilisateur dans la base de données
+            await DatabaseService.UpdateUserAsync(user);
+
+            // Assigner le rôle à l'utilisateur
+            if (!string.IsNullOrEmpty(selectedRole))
+            {
+                await DatabaseService.AssignRoleToUserAsync(user.Id, selectedRole);
+            }
+
+            Navigation.NavigateTo("/users");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors de la modification de l'utilisateur : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException?.Message}\n{ex.InnerException?.StackTrace}";
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/users");
+    }
+
+    public static string EncryptLaravelPassword(string plainText, string laravelAppKey)
+    {
+        try
+        {
+            byte[] keyBytes = Convert.FromBase64String(laravelAppKey.Replace("base64:", ""));
+            using var aes = Aes.Create();
+            aes.Key = keyBytes;
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.PKCS7;
+            aes.GenerateIV();
+            byte[] iv = aes.IV;
+
+            using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+            using var msEncrypt = new MemoryStream();
+            using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+            using var swEncrypt = new StreamWriter(csEncrypt);
+            swEncrypt.Write(plainText);
+            swEncrypt.Close();
+
+            byte[] cipherText = msEncrypt.ToArray();
+
+            var encryptedParts = new Dictionary<string, string>
+            {
+                { "iv", Convert.ToBase64String(iv) },
+                { "value", Convert.ToBase64String(cipherText) }
+            };
+
+            string jsonString = JsonSerializer.Serialize(encryptedParts);
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Erreur de chiffrement : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException}");
+        }
+    }
+}
