@@ -1,0 +1,38 @@
+﻿@page "/add_formateur"
+@using Microsoft.AspNetCore.Components.Forms
+@inject DatabaseService DatabaseService
+@inject NavigationManager Navigation
+@using static CarnApprenti.LivretApprentissageContext
+
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+
+<h3>Ajouter un formateur</h3>
+
+<EditForm Model="newFormateur" OnValidSubmit="HandleAddFormateur">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-3">
+        <label for="nom" class="form-label">Nom</label>
+        <InputText id="nom" class="form-control" @bind-Value="newFormateur.Nom" />
+    </div>
+    <div class="mb-3">
+        <label for="prenom" class="form-label">Prénom</label>
+        <InputText id="prenom" class="form-control" @bind-Value="newFormateur.Prenom" />
+    </div>
+    <button type="submit" class="btn btn-primary">Ajouter</button>
+</EditForm>
+
+@code {
+    private Formateur newFormateur = new Formateur();
+
+    private async Task HandleAddFormateur()
+    {
+        await DatabaseService.AddFormateurAsync(newFormateur);
+        Navigation.NavigateTo("/formateurs/matieres"); // Retour à la page principale des formateurs et matières
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/formateurs/matieres"); // Retour à la page principale des formateurs et matières
+    }
+}

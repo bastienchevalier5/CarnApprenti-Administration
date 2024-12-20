@@ -1,0 +1,93 @@
+﻿@page "/edit_formateur/{formateurId}"
+@using Microsoft.AspNetCore.Components.Forms
+@inject DatabaseService DatabaseService
+@inject NavigationManager Navigation
+@using static CarnApprenti.LivretApprentissageContext
+@inject IJSRuntime js
+
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+
+
+<h3>Modifier un formateur</h3>
+
+@if (formateurToEdit == null)
+{
+    <p>Chargement du formateur...</p>
+}
+else
+{
+    @if (formateurToEdit == null)
+    {
+        <p>Formateur non trouvé ou en cours de chargement...</p>
+    }
+    else
+    {
+        <EditForm Model="formateurToEdit" OnValidSubmit="HandleEditFormateur">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <div class="mb-3">
+                <label for="nom" class="form-label">Nom</label>
+                <InputText id="nom" class="form-control" @bind-Value="formateurToEdit.Nom" />
+            </div>
+            <div class="mb-3">
+                <label for="prenom" class="form-label">Prénom</label>
+                <InputText id="prenom" class="form-control" @bind-Value="formateurToEdit.Prenom" />
+            </div>
+            <button type="submit" class="btn btn-primary">Modifier</button>
+        </EditForm>
+    }
+
+}
+
+@code {
+    [Parameter] 
+    public string formateurId { get; set; }
+
+    private Formateur? formateurToEdit;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            if (ulong.Parse(formateurId) == 0)
+            {
+                throw new Exception("ID de formateur invalide.");
+            }
+
+            formateurToEdit = await DatabaseService.GetFormateurByIdAsync(ulong.Parse(formateurId));
+
+            if (formateurToEdit == null)
+            {
+                throw new Exception("Formateur introuvable.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Erreur lors de la récupération du formateur : {ex.Message}");
+            await js.InvokeVoidAsync("alert", "Erreur lors de la récupération du formateur : " + ex.Message);
+            Navigation.NavigateTo("/formateurs/matieres");
+        }
+    }
+
+
+
+    private async Task HandleEditFormateur()
+    {
+        try
+        {
+            await DatabaseService.UpdateFormateurAsync(formateurToEdit);
+            Navigation.NavigateTo("/formateurs/matieres");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Erreur lors de la mise à jour du formateur : {ex.Message}");
+            // Gérer l'erreur (par exemple afficher un message d'erreur)
+        }
+    }
+
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/formateurs/matieres");
+    }
+}

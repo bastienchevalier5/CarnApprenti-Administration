@@ -1,0 +1,120 @@
+﻿@page "/formateurs/matieres"
+@using Microsoft.AspNetCore.Components.Forms
+@using static CarnApprenti.LivretApprentissageContext
+@inject DatabaseService DatabaseService
+@inject NavigationManager Navigation
+@inject IJSRuntime js
+
+@if (isLoading)
+{
+    <p>Chargement des données...</p>
+}
+else
+{
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+
+<h3>Gestion des formateurs et des matières</h3>
+<a href="import_formateurs_matieres" class="btn btn-primary">Importer des Formateurs et Matières</a>
+<div class="formateurs">
+    <h4>Formateurs</h4>    
+    <a href="add_formateur" class="btn btn-primary">Ajouter un formateur</a>
+    <table class="users" border="1">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Prénom</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var formateur in formateurs)
+            {
+                <tr>
+                    <td>@formateur.Nom</td>
+                    <td>@formateur.Prenom</td>
+                    <td>
+                        <a href="edit_formateur/@formateur.Id" class="btn btn-warning">Modifier</a>
+                        <button class="btn btn-danger" @onclick="() => DeleteFormateur(formateur.Id)">Supprimer</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    
+</div>
+
+<div class="matieres">
+    <h4>Matières</h4>
+    <a href="add_matiere" class="btn btn-primary">Ajouter une matière</a>
+    <table class="users" border="1">
+        <thead>
+            <tr>
+                <th>Nom de la matière</th>
+                <th>Formateur</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var matiere in matieres)
+            {
+                <tr>
+                    <td>@matiere.Nom</td>
+                    <td>@matiere.Formateur?.Nom @matiere.Formateur?.Prenom</td>
+                    <td>
+                        <a href="edit_matiere/@matiere.Id" class="btn btn-warning">Modifier</a>
+                        <button class="btn btn-danger" @onclick="() => DeleteMatiere(matiere.Id)">Supprimer</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    
+</div>
+}
+
+@code {
+    private bool isLoading = true;
+    private List<Formateur> formateurs = new List<Formateur>();
+    private List<Matiere> matieres = new List<Matiere>();
+
+    // Méthodes de chargement des données
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        // Charger les formateurs et les matières depuis la base de données
+        formateurs = await DatabaseService.GetFormateursAsync();
+        matieres = await DatabaseService.GetMatieresAsync();
+
+        isLoading = false;
+    }
+
+
+    private async Task DeleteFormateur(ulong formateurId)
+    {
+        bool confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer ce formateur ?");
+        if (confirmed)
+        {
+            await DatabaseService.DeleteFormateurAsync(formateurId);
+            formateurs = formateurs.Where(f => f.Id != formateurId).ToList();
+        }
+    }
+
+
+
+    private async Task DeleteMatiere(ulong matiereId)
+    {
+        bool confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer cette matière?");
+        if (confirmed)
+        {
+            await DatabaseService.DeleteMatiereAsync(matiereId);
+            matieres = matieres.Where(m => m.Id != matiereId).ToList();
+        }
+        
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/"); // Revenir à la page des groupes
+    }
+}

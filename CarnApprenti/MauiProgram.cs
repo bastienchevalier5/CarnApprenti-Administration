@@ -9,6 +9,7 @@ using System;
 using Blazored.SessionStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.Text;
+using Microsoft.Maui.LifecycleEvents;
 
 namespace CarnApprenti
 {
@@ -49,9 +50,31 @@ namespace CarnApprenti
 
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
+//#if WINDOWS
+//            builder.ConfigureLifecycleEvents(events =>
+//            {
+//                events.AddWindows(windows => windows.OnWindowCreated(window =>
+//                {
+//                    window.ExtendsContentIntoTitleBar = true;
+//                    var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+//                    var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+//                    var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+//                    appWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen);
+//                }));
+//            });
+//#endif
+
+//#if ANDROID
+//            builder.ConfigureLifecycleEvents(events =>
+//            {
+//                events.AddAndroid(android => android.OnCreate((activity, savedInstanceState) =>
+//                {
+//                    activity.Window.AddFlags(Android.Views.WindowManagerFlags.Fullscreen);
+//                }));
+//            });
+//#endif
+
             return builder.Build();
-
-
         }
     }
 }

@@ -1,0 +1,111 @@
+﻿@page "/edit_groupes/{groupId}"
+@using static CarnApprenti.LivretApprentissageContext
+@inject DatabaseService DatabaseService
+@inject IJSRuntime js
+@inject NavigationManager Navigation
+
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+
+<h1>Modifier un groupe</h1>
+
+<EditForm Model="newGroupe" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="groupeName">Nom du groupe</label>
+        <InputText id="groupeName" class="form-control" @bind-Value="newGroupe.Nom" />
+    </div>
+
+    <div class="form-group">
+        <label for="referent">Référent</label>
+        <InputSelect id="referent" class="form-control" @bind-Value="selectedReferentId">
+            <option value="">Sélectionner un référent</option>  <!-- Valeur vide pour l'option par défaut -->
+            @foreach (var referent in referents)
+            {
+                <option value="@referent.Id">@referent.Nom @referent.Prenom</option>
+            }
+        </InputSelect>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Mettre à jour le groupe</button>
+</EditForm>
+
+@code {
+    private Groupe newGroupe = new Groupe();
+    private List<User> referents = new List<User>();
+    private ulong? selectedReferentId = null;  // Utiliser nullable pour la gestion du cas sans référent
+
+    [Parameter]
+    public string groupId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Charger la liste des référents
+            referents = await DatabaseService.GetReferentsAsync();
+
+            // Charger le groupe existant en utilisant l'ID du groupe
+            if (ulong.TryParse(groupId, out ulong id))
+            {
+                newGroupe = await DatabaseService.GetGroupeByIdAsync(id);
+
+                // Si un groupe est trouvé, initialisez le référent sélectionné
+                if (newGroupe != null)
+                {
+                    // Sélectionner le référent actuel en fonction de l'IdGroupe
+                    var referent = referents.FirstOrDefault(r => r.GroupeId == newGroupe.Id);
+                    if (referent != null)
+                    {
+                        selectedReferentId = referent.Id;  // Si un référent est trouvé, le sélectionner
+                    }
+                    else
+                    {
+                        selectedReferentId = null; // Aucun référent, donc option par défaut
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await js.InvokeVoidAsync("alert", $"Erreur lors du chargement du groupe : {ex.Message}");
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            // Mettre à jour le groupe dans la base de données
+            newGroupe.UpdatedAt = DateTime.UtcNow;  // Mettre à jour la date de modification
+
+            await DatabaseService.UpdateGroupeAsync(newGroupe);
+
+            // Si un référent est sélectionné, affectez-le au groupe
+            if (selectedReferentId.HasValue)
+            {
+                var referent = referents.FirstOrDefault(r => r.Id == selectedReferentId.Value);
+                if (referent != null)
+                {
+                    referent.GroupeId = newGroupe.Id; // Affecter le groupe au référent
+
+                    // Mettre à jour l'utilisateur (référent)
+                    await DatabaseService.UpdateUserAsync(referent);
+                }
+            }
+
+            // Rediriger vers la page des groupes après la mise à jour
+            Navigation.NavigateTo("/groupes");
+        }
+        catch (Exception ex)
+        {
+            await js.InvokeVoidAsync("alert", $"Erreur lors de la mise à jour du groupe : {ex.Message}");
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/groupes"); // Revenir à la page des groupes
+    }
+}

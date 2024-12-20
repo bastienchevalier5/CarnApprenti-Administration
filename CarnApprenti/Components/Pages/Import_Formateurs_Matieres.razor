@@ -1,0 +1,233 @@
+﻿@page "/import_formateurs_matieres"
+@inject NavigationManager Navigation
+@inject DatabaseService DatabaseService
+@inject IJSRuntime js
+@using System.IO
+@using CsvHelper
+@using CsvHelper.Configuration
+@using System.Globalization
+@using System.Collections.Generic
+@using System.Linq
+@using System.Text.Json
+@using CsvHelper.Configuration.Attributes
+@using System.Text
+@using static CarnApprenti.LivretApprentissageContext
+
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+
+<h1>Importer des formateurs et matières</h1>
+
+<div class="form-container">
+    <InputFile OnChange="HandleFileSelected" accept=".csv" />
+    @if (errorMessage != null)
+    {
+        <p class="text-danger">@errorMessage</p>
+    }
+
+    @if (successMessage != null)
+    {
+        <p class="text-success">@successMessage</p>
+    }
+
+    @if (csvData != null)
+    {
+        <h3>Récapitulatif de l'importation</h3>
+        <table class="table text-white">
+            <thead>
+                <tr>
+                    <th>Nom du Formateur</th>
+                    <th>Prénom du Formateur</th>
+                    <th>Nom de la Matière</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in csvData)
+                {
+                    <tr>
+                        <td>@row.NomFormateur</td>
+                        <td>@row.PrenomFormateur</td>
+                        <td>@row.NomMatiere</td>
+                        <td>@row.Statut</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <button class="btn btn-success" @onclick="ImportData">Importer</button>
+        <button class="btn btn-danger" @onclick="CancelImport">Annuler</button>
+    }
+</div>
+
+@code {
+    private List<FormateurMatiereImportModel> csvData;
+    private string errorMessage;
+    private string successMessage;
+
+    public class FormateurMatiereImportModel
+    {
+        [Name("Nom du Formateur")]
+        public string NomFormateur { get; set; }
+
+        [Name("Prénom du Formateur")]
+        public string PrenomFormateur { get; set; }
+
+        [Name("Nom de la Matière")]
+        public string NomMatiere { get; set; }
+
+        public string Statut { get; set; } // "Succès" ou "Erreur"
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        successMessage = null;
+        errorMessage = null;
+        try
+        {
+            var file = e.File;
+            if (file != null)
+            {
+                var fileContent = new MemoryStream();
+                await file.OpenReadStream().CopyToAsync(fileContent);
+                fileContent.Seek(0, SeekOrigin.Begin);
+
+                var detectedEncoding = DetectFileEncoding(fileContent);
+                var reader = new StreamReader(fileContent, detectedEncoding);
+                var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+                    {
+                        HasHeaderRecord = true,
+                        MissingFieldFound = null
+                    };
+
+                var csv = new CsvReader(reader, config);
+
+                // Lire les en-têtes du fichier CSV
+                var headers = new List<string>();
+                csv.Read();
+                csv.ReadHeader();
+                foreach (var header in csv.HeaderRecord)
+                {
+                    headers.Add(header);
+                }
+
+                // Vérifier les en-têtes
+                var expectedHeaders = new List<string> { "Nom du Formateur", "Prénom du Formateur", "Nom de la Matière" };
+                if (!headers.SequenceEqual(expectedHeaders))
+                {
+                    errorMessage = "Le fichier n'est pas au bon format. Vérifiez les en-têtes du fichier CSV.";
+                    return;
+                }
+
+                var records = csv.GetRecords<FormateurMatiereImportModel>().ToList();
+
+                // Vérification des champs obligatoires
+                if (records.Any(r => string.IsNullOrEmpty(r.NomFormateur) || string.IsNullOrEmpty(r.PrenomFormateur) || string.IsNullOrEmpty(r.NomMatiere)))
+                {
+                    errorMessage = "Le fichier CSV contient des données manquantes ou mal formatées.";
+                    return;
+                }
+
+                var existingFormateurs = await DatabaseService.GetFormateursAsync(); // Charger tous les formateurs existants
+
+                foreach (var record in records)
+                {
+                    // Vérifier si le formateur existe
+                    var formateur = existingFormateurs.FirstOrDefault(f =>
+                        f.Nom.Equals(record.NomFormateur, StringComparison.OrdinalIgnoreCase) &&
+                        f.Prenom.Equals(record.PrenomFormateur, StringComparison.OrdinalIgnoreCase));
+
+                    if (formateur == null)
+                    {
+                        // Ajouter le formateur s'il n'existe pas
+                        formateur = new LivretApprentissageContext.Formateur
+                            {
+                                Nom = record.NomFormateur,
+                                Prenom = record.PrenomFormateur
+                            };
+                        await DatabaseService.AddFormateurAsync(formateur);
+                        existingFormateurs.Add(formateur);
+                    }
+
+                    // Vérifier si la matière est déjà associée à ce formateur
+                    var existingMatiere = await DatabaseService.GetMatiereByNameAndFormateurAsync(record.NomMatiere, formateur.Id);
+                    if (existingMatiere != null)
+                    {
+                        record.Statut = "La matière est déjà associée à ce formateur";
+                    }
+                    else
+                    {
+                        // Ajouter la matière si elle n'existe pas pour le formateur
+                        var newMatiere = new LivretApprentissageContext.Matiere
+                            {
+                                Nom = record.NomMatiere,
+                                FormateurId = formateur.Id
+                            };
+                        await DatabaseService.AddMatiereAsync(newMatiere);
+                        record.Statut = "Succès";
+                    }
+                }
+                csvData = records;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors du traitement du fichier : {ex.Message}";
+        }
+    }
+
+    private async Task ImportData()
+    {
+        if (csvData == null || !csvData.Any()) return;
+
+        try
+        {
+            // Analyser les statuts après l'importation
+            int successCount = csvData.Count(r => r.Statut == "Succès");
+
+            if (successCount > 0)
+            {
+                successMessage = successCount == 1
+                    ? "1 matière a été importée avec succès."
+                    : $"{successCount} matières ont été importées avec succès";
+            }
+            else
+            {
+                errorMessage = "Importation annulée. Aucune matière valide à importer.";
+                
+            }
+            csvData = null; // Annuler l'importation
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors de l'importation : {ex.Message}";
+        }
+    }
+
+
+
+    private void CancelImport()
+    {
+        csvData = null;
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private Encoding DetectFileEncoding(Stream stream)
+    {
+        var preamble = new byte[3];
+        stream.Read(preamble, 0, 3);
+        stream.Seek(0, SeekOrigin.Begin);
+
+        if (preamble[0] == 0xEF && preamble[1] == 0xBB && preamble[2] == 0xBF)
+        {
+            return Encoding.UTF8;
+        }
+
+        return Encoding.GetEncoding("Windows-1252");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/formateurs/matieres");
+    }
+}

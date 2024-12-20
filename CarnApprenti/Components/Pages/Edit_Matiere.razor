@@ -1,0 +1,60 @@
+﻿@page "/edit_matiere/{matiereId}"
+@using Microsoft.AspNetCore.Components.Forms
+@using static CarnApprenti.LivretApprentissageContext
+@inject DatabaseService DatabaseService
+@inject NavigationManager Navigation
+
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+
+<h3>Modifier une matière</h3>
+
+@if (matiereToEdit == null)
+{
+    <p>Matière non trouvée ou en cours de chargement...</p>
+}
+else
+{
+    <EditForm Model="matiereToEdit" OnValidSubmit="HandleEditMatiere">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="mb-3">
+            <label for="matiereNom" class="form-label">Nom de la matière</label>
+            <InputText id="matiereNom" class="form-control" @bind-Value="matiereToEdit.Nom" />
+        </div>
+        <div class="mb-3">
+            <label for="formateurId" class="form-label">Formateur</label>
+            <InputSelect id="formateurId" class="form-control" @bind-Value="matiereToEdit.FormateurId">
+                <option value="">Sélectionnez un formateur</option>
+                @foreach (var formateur in formateurs)
+                {
+                    <option value="@formateur.Id">@formateur.Nom @formateur.Prenom</option>
+                }
+            </InputSelect>
+        </div>
+        <button type="submit" class="btn btn-primary">Modifier</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public string matiereId { get; set; }
+
+    private Matiere matiereToEdit;
+    private List<Formateur> formateurs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        matiereToEdit = await DatabaseService.GetMatiereByIdAsync(ulong.Parse(matiereId));
+        formateurs = await DatabaseService.GetFormateursAsync();
+    }
+
+    private async Task HandleEditMatiere()
+    {
+        await DatabaseService.UpdateMatiereAsync(matiereToEdit);
+        Navigation.NavigateTo("/formateurs/matieres");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/formateurs/matieres");
+    }
+}

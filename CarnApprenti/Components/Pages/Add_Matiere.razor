@@ -1,0 +1,90 @@
+﻿@page "/add_matiere"
+@using Microsoft.AspNetCore.Components.Forms
+@using static CarnApprenti.LivretApprentissageContext
+@inject DatabaseService DatabaseService
+@inject NavigationManager Navigation
+
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+
+<h3>Ajouter une matière</h3>
+
+<EditForm Model="newMatiere" OnValidSubmit="HandleAddMatiere">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-3">
+        <label for="matiereNom" class="form-label">Nom de la matière</label>
+        <InputText id="matiereNom" class="form-control" @bind-Value="newMatiere.Nom" />
+    </div>
+    <div class="mb-3">
+        <label for="formateurId" class="form-label">Formateur</label>
+        <InputSelect id="formateurId" class="form-control" @bind-Value="newMatiere.FormateurId">
+            <option value="">Sélectionnez un formateur</option>
+            @foreach (var formateur in formateurs)
+            {
+                <option value="@formateur.Id">@formateur.Nom @formateur.Prenom</option>
+            }
+        </InputSelect>
+
+    </div>
+    <button type="submit" class="btn btn-primary">Ajouter</button>
+</EditForm>
+
+@code {
+    private Matiere newMatiere = new Matiere();
+    private List<Formateur> formateurs = new List<Formateur>(); // Initialisation avec une liste vide
+    private bool isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+            formateurs = await DatabaseService.GetFormateursAsync();
+
+            // Vérifiez si la liste est nulle ou vide
+            if (formateurs == null || !formateurs.Any())
+            {
+                // Traitez le cas où il n'y a pas de formateurs
+                Console.WriteLine("Aucun formateur trouvé.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur lors du chargement des formateurs : {ex.Message}");
+            // Gérer l'erreur (par exemple, afficher un message d'erreur)
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+
+    private async Task HandleAddMatiere()
+    {
+        try
+        {
+            if (newMatiere.FormateurId == 0)
+            {
+                // Ajouter une vérification si un formateur est sélectionné
+                throw new Exception("Veuillez sélectionner un formateur.");
+            }
+
+            await DatabaseService.AddMatiereAsync(newMatiere);
+            Navigation.NavigateTo("/formateurs/matieres");
+        }
+        catch (Exception ex)
+        {
+            // Log l'erreur et affiche un message d'erreur à l'utilisateur
+            Console.Error.WriteLine($"Erreur lors de l'ajout de la matière: {ex.Message}");
+            // Vous pouvez ajouter ici un message d'erreur à afficher à l'utilisateur
+        }
+    }
+
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/formateurs/matieres");
+    }
+}

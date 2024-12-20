@@ -173,6 +173,74 @@ namespace CarnApprenti
             return await _context.Groupes.ToListAsync();
         }
 
+        public async Task AddGroupeAsync(Groupe groupe)
+        {
+            groupe.CreatedAt = DateTime.Now;
+            groupe.UpdatedAt = DateTime.Now;
+            _context.Groupes.Add(groupe);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<Groupe> GetGroupeByIdAsync(ulong id)
+        {
+            return await _context.Groupes
+                                 .FirstOrDefaultAsync(g => g.Id == id);
+        }
+
+        public async Task UpdateGroupeAsync(Groupe groupe)
+        {
+            _context.Groupes.Update(groupe);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<GroupeWithReferent>> GetGroupesWithReferentAsync()
+        {
+            const string ROLE_REFERENT = "referent";
+
+            var groupesWithReferents = await _context.Groupes
+                .Select(groupe => new GroupeWithReferent
+                {
+                    Id = groupe.Id,
+                    Nom = groupe.Nom,
+                    Referent = _context.AssignedRoles
+                        .Include(ar => ar.Role)
+                        .Include(ar => ar.Entity)
+                        .Where(ar => ar.Role.Name == ROLE_REFERENT)
+                        .Where(ar => ar.Entity.GroupeId == groupe.Id)
+                        .Select(ar => ar.Entity)
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
+
+            return groupesWithReferents;
+        }
+
+        public async Task<List<User>> GetReferentsAsync()
+        {
+            try
+            {
+                // Step 1: Retrieve all assigned roles with the role name "referent"
+                var referentIds = await _context.AssignedRoles
+                    .Include(ar => ar.Role)  // Include the related Role entity
+                    .Where(ar => ar.Role.Name == "referent")
+                    .Select(ar => ar.EntityId)  // Select the IDs of users with the "referent" role
+                    .ToListAsync();
+
+                // Step 2: Retrieve users whose IDs match the referent IDs
+                var users = await _context.Users
+                    .Where(u => referentIds.Contains(u.Id))  // Filter users based on the referent IDs
+                    .ToListAsync();
+
+                return users;
+            }
+            catch (Exception ex)
+            {
+                // Log the exception or handle it as needed
+                throw new Exception("Erreur lors de la récupération des référents.", ex);
+            }
+        }
+
+
         public async Task<List<User>> GetUsersByRoleAsync(string roleName)
         {
             var userIdsWithRole = await _context.AssignedRoles
@@ -336,6 +404,201 @@ namespace CarnApprenti
                 .Select(u => u.Email)
                 .ToListAsync();
         }
+
+        public async Task<List<Formateur>> GetFormateursAsync()
+        {
+            try
+            {
+                // Supposons que _context est un DbContext ou similaire
+                var formateurs = await _context.Formateurs.ToListAsync();
+                return formateurs ?? new List<Formateur>(); // Retourne une liste vide si null
+            }
+            catch (Exception ex)
+            {
+                // Log de l'erreur et gestion des exceptions
+                Console.Error.WriteLine($"Erreur lors du chargement des formateurs : {ex.Message}");
+                return new List<Formateur>(); // Retourne une liste vide en cas d'erreur
+            }
+        }
+
+
+        // Récupérer toutes les matières
+        public async Task<List<Matiere>> GetMatieresAsync()
+        {
+            return await _context.Matieres.Include(m => m.Formateur).ToListAsync();
+        }
+
+        // Ajouter un formateur
+        public async Task AddFormateurAsync(Formateur formateur)
+        {
+            _context.Formateurs.Add(formateur);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task UpdateFormateurAsync(Formateur formateur)
+        {
+            try
+            {
+                var existingFormateur = await _context.Formateurs.FindAsync(formateur.Id);
+                if (existingFormateur != null)
+                {
+                    existingFormateur.Nom = formateur.Nom;
+                    existingFormateur.Prenom = formateur.Prenom;
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log ou gérer l'erreur
+                throw new Exception($"Erreur lors de la mise à jour du formateur: {ex.Message}", ex);
+            }
+        }
+
+
+
+        // Ajouter une matière
+        public async Task AddMatiereAsync(Matiere matiere)
+        {
+            _context.Matieres.Add(matiere);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task UpdateMatiereAsync(Matiere matiere)
+        {
+            // Vérifier si la matière existe dans la base de données
+            var existingMatiere = await _context.Matieres
+                                                  .Include(m => m.Formateur) // Inclure le formateur pour éviter les problèmes de navigation
+                                                  .FirstOrDefaultAsync(m => m.Id == matiere.Id);
+            if (existingMatiere != null)
+            {
+                // Mettre à jour les propriétés de la matière
+                existingMatiere.Nom = matiere.Nom;
+                existingMatiere.FormateurId = matiere.FormateurId;
+
+                // Mettre à jour le formateur si nécessaire
+                if (matiere.FormateurId != null)
+                {
+                    var formateur = await _context.Formateurs
+                                                     .FirstOrDefaultAsync(f => f.Id == matiere.FormateurId);
+                    if (formateur != null)
+                    {
+                        existingMatiere.Formateur = formateur;
+                    }
+                }
+
+                // Sauvegarder les changements dans la base de données
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                throw new Exception("Matière non trouvée");
+            }
+        }
+
+
+        // Supprimer un formateur
+        public async Task DeleteFormateurAsync(ulong formateurId)
+        {
+            var formateur = await _context.Formateurs.FindAsync(formateurId);
+            if (formateur != null)
+            {
+                _context.Formateurs.Remove(formateur);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        // Supprimer une matière
+        public async Task DeleteMatiereAsync(ulong matiereId)
+        {
+            var matiere = await _context.Matieres.FindAsync(matiereId);
+            if (matiere != null)
+            {
+                _context.Matieres.Remove(matiere);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        // Récupérer un formateur par ID
+        public async Task<Formateur> GetFormateurByIdAsync(ulong formateurId)
+        {
+            try
+            {
+                Console.WriteLine($"Récupération du formateur avec ID : {formateurId}");
+                var formateur = await _context.Formateurs
+                    .Where(f => f.Id == formateurId)
+                    .FirstOrDefaultAsync();
+
+                if (formateur == null)
+                {
+                    throw new Exception($"Formateur avec l'ID {formateurId} non trouvé.");
+                }
+
+                return formateur;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Erreur lors de la récupération du formateur : {ex.Message}");
+                throw;
+            }
+        }
+
+
+
+
+        // Récupérer une matière par ID
+        public async Task<Matiere> GetMatiereByIdAsync(ulong matiereId)
+        {
+            try
+            {
+                var matiere = await _context.Matieres
+                    .Where(f => f.Id == matiereId)  // Recherche un formateur avec cet ID
+                    .FirstOrDefaultAsync();
+
+                return matiere;  // Retourne le formateur trouvé ou null si aucun formateur n'est trouvé
+            }
+            catch (Exception ex)
+            {
+                // Log l'erreur ou gérer comme nécessaire
+                throw new Exception($"Erreur lors de la récupération du formateur : {ex.Message}", ex);
+            }
+        }
+
+        public async Task<Formateur> GetFormateurByNameAsync(string nom, string prenom)
+        {
+            try
+            {
+                // Rechercher le formateur dans la base de données en utilisant son nom et prénom
+                var formateur = await _context.Formateurs
+                                              .Where(f => f.Nom.Equals(nom, StringComparison.OrdinalIgnoreCase) &&
+                                                          f.Prenom.Equals(prenom, StringComparison.OrdinalIgnoreCase))
+                                              .FirstOrDefaultAsync();
+
+                return formateur;
+            }
+            catch (Exception ex)
+            {
+                // Gérer les erreurs, par exemple, enregistrer dans un journal ou afficher un message
+                Console.WriteLine($"Erreur lors de la récupération du formateur : {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<Matiere> GetMatiereByNameAndFormateurAsync(string nomMatiere, ulong formateurId)
+        {
+            try
+            {
+                return await _context.Matieres
+                                     .FirstOrDefaultAsync(m => m.Nom == nomMatiere && m.FormateurId == formateurId);
+            }
+            catch (Exception ex)
+            {
+                // Log de l'erreur
+                Console.WriteLine($"Erreur lors de la récupération de la matière : {ex.Message}");
+                throw; // Relancer l'exception pour la gestion globale
+            }
+        }
+
+
 
     }
 }

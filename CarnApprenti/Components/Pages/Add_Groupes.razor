@@ -1,0 +1,87 @@
+﻿@page "/add_groupes"
+@using static CarnApprenti.LivretApprentissageContext
+@inject DatabaseService DatabaseService
+@inject IJSRuntime js
+@inject NavigationManager Navigation
+
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+
+<h1>Ajouter un groupe</h1>
+
+<EditForm Model="newGroupe" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="groupeName">Nom du groupe</label>
+        <InputText id="groupeName" class="form-control" @bind-Value="newGroupe.Nom" />
+    </div>
+
+    <div class="form-group">
+        <label for="referent">Référent</label>
+        <InputSelect id="referent" class="form-control" @bind-Value="selectedReferentId">
+            <option value="">Sélectionner un référent</option>
+            @foreach (var referent in referents)
+            {
+                <option value="@referent.Id">@referent.Nom @referent.Prenom</option>
+            }
+        </InputSelect>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Ajouter le groupe</button>
+</EditForm>
+
+@code {
+    private Groupe newGroupe = new Groupe();
+    private List<User> referents = new List<User>();
+    private ulong selectedReferentId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Get the list of users who can be referents
+            referents = await DatabaseService.GetReferentsAsync();
+        }
+        catch (Exception ex)
+        {
+            await js.InvokeVoidAsync("alert", $"Erreur de chargement des référents : {ex.Message}");
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            // Save the new group to the database
+            await DatabaseService.AddGroupeAsync(newGroupe);
+
+            // Now, assign the group to the selected referent by updating the IdGroupe in the User table
+            if (selectedReferentId > 0)
+            {
+                // Get the selected referent from the list
+                var referent = referents.FirstOrDefault(r => r.Id == selectedReferentId);
+
+                if (referent != null)
+                {
+                    referent.GroupeId = newGroupe.Id; // Assign the newly created group ID to the referent's IdGroupe
+
+                    // Update the referent in the database (this assumes you have a method to update the user)
+                    await DatabaseService.UpdateUserAsync(referent);
+                }
+            }
+
+            // Redirect to the groups list page after the group is added
+            Navigation.NavigateTo("/groupes");
+        }
+        catch (Exception ex)
+        {
+            await js.InvokeVoidAsync("alert", $"Erreur lors de l'ajout du groupe : {ex.Message}");
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/groupes"); // Go back to the group list page
+    }
+}

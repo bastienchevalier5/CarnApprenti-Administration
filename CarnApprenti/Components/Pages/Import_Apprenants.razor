@@ -14,8 +14,9 @@
 @using CsvHelper.Configuration.Attributes
 @using static CarnApprenti.LivretApprentissageContext
 
-<h1>Importer des apprenants</h1>
 <button class="retour-link bouton" @onclick="GoBack">Retour</button>
+
+<h1>Importer des apprenants</h1>
 
 <div class="form-container">
     <InputFile OnChange="HandleFileSelected" accept=".csv" />

@@ -38,6 +38,9 @@ namespace CarnApprenti
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
         public DbSet<Session> Sessions { get; set; }
         public DbSet<Site> Sites { get; set; }
+        public DbSet<GroupeWithReferent> GroupeWithReferents { get; set; }
+        public DbSet<Formateur> Formateurs { get; set; }
+        public DbSet<Matiere> Matieres { get; set; }
 
         // Fluent API Configurations can be added here (if needed)
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -228,6 +231,7 @@ namespace CarnApprenti
 
             [Column("updated_at")]
             public DateTime? UpdatedAt { get; set; }
+
         }
 
         [Table("job_batches")]
@@ -541,5 +545,42 @@ namespace CarnApprenti
 
         }
 
+        public class GroupeWithReferent
+        {
+            public ulong Id { get; set; }
+            public string Nom { get; set; } = string.Empty;
+            public User? Referent { get; set; }
+        }
+
+        [Table("formateurs")]
+        public class Formateur
+        {
+            [Key]
+            [Column("id")]
+            public ulong Id { get; set; }
+
+            [Column("nom")]
+            public string Nom { get; set; }
+
+            [Column("prenom")]
+            public string Prenom { get; set; }
+
+        }
+
+        [Table("matieres")]
+        public class Matiere
+        {
+            [Key]
+            [Column("id")]
+            public ulong Id { get; set; }
+
+            [Column("nom")]
+            public string Nom { get; set; }
+
+            [Column("formateur_id")]
+            public ulong FormateurId { get; set; }
+
+            public Formateur ?Formateur { get; set; }
+        }
     }
 }

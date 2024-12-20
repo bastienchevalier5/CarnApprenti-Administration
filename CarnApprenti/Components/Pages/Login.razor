@@ -11,6 +11,8 @@
 @inject DatabaseService DatabaseService
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
 
+<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+
 <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
     <DataAnnotationsValidator />
     <ValidationSummary />
@@ -158,5 +160,10 @@
     {
         public string? Identifiant { get; set; }
         public string? Mdp { get; set; }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/"); // Revenir à la page des groupes
     }
 }
