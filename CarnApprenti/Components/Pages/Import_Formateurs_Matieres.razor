@@ -13,27 +13,32 @@
 @using System.Text
 @using static CarnApprenti.LivretApprentissageContext
 
-<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+<button class="btn btn-primary mb-3" @onclick="GoBack">← Retour</button>
 
-<h1>Importer des formateurs et matières</h1>
+<h1 class="mb-4">Importer des formateurs et matières</h1>
 
-<div class="form-container">
-    <InputFile OnChange="HandleFileSelected" accept=".csv" />
+<div class="form-container p-4 bg-white rounded shadow-sm">
+    <InputFile OnChange="HandleFileSelected" accept=".csv" class="form-control mb-3" />
+
     @if (errorMessage != null)
     {
-        <p class="text-danger">@errorMessage</p>
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
     }
 
     @if (successMessage != null)
     {
-        <p class="text-success">@successMessage</p>
+        <div class="alert alert-success" role="alert">
+            @successMessage
+        </div>
     }
 
     @if (csvData != null)
     {
-        <h3>Récapitulatif de l'importation</h3>
-        <table class="table text-white">
-            <thead>
+        <h3 class="text-dark mt-4">Récapitulatif de l'importation</h3>
+        <table class="table table-bordered table-striped table-hover mt-3">
+            <thead class="table-dark">
                 <tr>
                     <th>Nom du Formateur</th>
                     <th>Prénom du Formateur</th>
@@ -44,7 +49,7 @@
             <tbody>
                 @foreach (var row in csvData)
                 {
-                    <tr>
+                    <tr class="@GetRowClass(row.Statut)">
                         <td>@row.NomFormateur</td>
                         <td>@row.PrenomFormateur</td>
                         <td>@row.NomMatiere</td>
@@ -54,8 +59,10 @@
             </tbody>
         </table>
 
-        <button class="btn btn-success" @onclick="ImportData">Importer</button>
-        <button class="btn btn-danger" @onclick="CancelImport">Annuler</button>
+        <div class="d-flex justify-content-end mt-3">
+            <button class="btn btn-success me-2" @onclick="ImportData">Importer</button>
+            <button class="btn btn-danger" @onclick="CancelImport">Annuler</button>
+        </div>
     }
 </div>
 
@@ -193,7 +200,7 @@
             else
             {
                 errorMessage = "Importation annulée. Aucune matière valide à importer.";
-                
+
             }
             csvData = null; // Annuler l'importation
         }
@@ -202,8 +209,6 @@
             errorMessage = $"Une erreur s'est produite lors de l'importation : {ex.Message}";
         }
     }
-
-
 
     private void CancelImport()
     {
@@ -230,4 +235,6 @@
     {
         Navigation.NavigateTo("/formateurs/matieres");
     }
+
+    private string GetRowClass(string status) => status.Contains("La matière est déjà associée à ce formateur") ? "table-danger" : "table-success";
 }

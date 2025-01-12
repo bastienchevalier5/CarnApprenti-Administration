@@ -1,0 +1,104 @@
+﻿@page "/sites"
+@using static CarnApprenti.LivretApprentissageContext
+@inject NavigationManager Navigation
+@inject DatabaseService DatabaseService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject IJSRuntime js
+
+<button class="retour-link bouton btn btn-secondary" @onclick="GoBack">Retour</button>
+<h1 class="text-center mt-4">Gestion des sites</h1>
+
+<div class="container_bouton">
+    <a href="add_site" class="btn btn-primary">Ajout de site</a>
+</div>
+
+@if (sites == null)
+{
+    <p>Chargement des sites...</p>
+    <p class="text-danger">@errorMessage</p>
+}
+else if (sites.Count == 0)
+{
+    <p>Aucun site trouvé.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr class="text-center">
+                    <th>Nom</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody class="text-white">
+                @foreach (var site in sites)
+                {
+                    <tr class="text-center">
+                        <td>@site.Nom</td>
+                        <td>
+                            <a href="edit_site/@site.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
+                            <button class="btn btn-danger btn-sm m-2" @onclick="() => DeleteSite(site.Id)">Supprimer</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<LivretApprentissageContext.Site>? sites;
+    private ulong? currentUserId;
+    private string errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Vérification de session
+            currentUserId = await SessionStorage.GetItemAsync<ulong?>("Id");
+
+            if (currentUserId == null)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            // Chargement des sites
+            sites = await DatabaseService.GetSitesAsync(); // Récupérer les sites
+            if (sites == null)
+            {
+                errorMessage = "Aucun site trouvé.";
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Gestion des erreurs
+            errorMessage = $"Une erreur s'est produite lors du chargement des sites : {ex.Message}";
+        }
+    }
+
+    private async Task DeleteSite(ulong siteId)
+    {
+        var confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer ce site ?");
+        if (confirmed)
+        {
+            try
+            {
+                await DatabaseService.DeleteSiteAsync(siteId);
+                sites = await DatabaseService.GetSitesAsync(); // Recharger la liste après suppression
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Une erreur s'est produite lors de la suppression du site : {ex.Message}";
+            }
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/"); // Retour à la page précédente
+    }
+}

@@ -1,0 +1,65 @@
+﻿@page "/add_site"
+@using static CarnApprenti.LivretApprentissageContext
+@inject NavigationManager Navigation
+@inject DatabaseService DatabaseService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject IJSRuntime js
+
+<!-- Retour au lien -->
+<button class="retour-link bouton btn btn-secondary mb-3" @onclick="GoBack">Retour</button>
+
+<h1 class="text-center mb-4">Ajouter un site</h1>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
+    </div>
+}
+
+<div class="container">
+    <div class="form-container">
+        <EditForm Model="@newSite" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <!-- Champs Nom -->
+            <div class="form-group mb-3">
+                <label for="Nom" class="form-label">Nom</label>
+                <InputText id="Nom" class="form-control" @bind-Value="newSite.Nom" />
+            </div>
+
+            <!-- Bouton de soumission -->
+            <button type="submit" class="btn btn-primary w-100">Ajouter</button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private Site newSite = new Site();
+    private string errorMessage;
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            // Set timestamps
+            newSite.CreatedAt = DateTime.UtcNow;
+            newSite.UpdatedAt = DateTime.UtcNow;
+
+            // Add site to database
+            await DatabaseService.AddSiteAsync(newSite);
+
+            Navigation.NavigateTo("/sites");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors de l'ajout du site : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException?.Message}\n{ex.InnerException?.StackTrace}";
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/sites");
+    }
+}

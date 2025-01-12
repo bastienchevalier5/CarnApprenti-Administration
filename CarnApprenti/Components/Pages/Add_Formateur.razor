@@ -4,22 +4,27 @@
 @inject NavigationManager Navigation
 @using static CarnApprenti.LivretApprentissageContext
 
-<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
 
-<h3>Ajouter un formateur</h3>
+<h3 class="text-center mb-4">Ajouter un Formateur</h3>
 
 <EditForm Model="newFormateur" OnValidSubmit="HandleAddFormateur">
     <DataAnnotationsValidator />
-    <ValidationSummary />
-    <div class="mb-3">
+    <ValidationSummary class="text-danger mb-3" />
+
+    <div class="mb-4">
         <label for="nom" class="form-label">Nom</label>
-        <InputText id="nom" class="form-control" @bind-Value="newFormateur.Nom" />
+        <InputText id="nom" class="form-control" @bind-Value="newFormateur.Nom" placeholder="Entrez le nom du formateur" />
     </div>
-    <div class="mb-3">
+
+    <div class="mb-4">
         <label for="prenom" class="form-label">Prénom</label>
-        <InputText id="prenom" class="form-control" @bind-Value="newFormateur.Prenom" />
+        <InputText id="prenom" class="form-control" @bind-Value="newFormateur.Prenom" placeholder="Entrez le prénom du formateur" />
     </div>
-    <button type="submit" class="btn btn-primary">Ajouter</button>
+
+    <div class="d-flex justify-content-center mb-4">
+        <button type="submit" class="btn btn-primary btn-lg">Ajouter le Formateur</button>
+    </div>
 </EditForm>
 
 @code {

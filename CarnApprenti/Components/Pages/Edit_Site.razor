@@ -1,0 +1,76 @@
+﻿@page "/edit_site/{siteId}"
+@using static CarnApprenti.LivretApprentissageContext
+@inject NavigationManager Navigation
+@inject DatabaseService DatabaseService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject IJSRuntime js
+
+<h1 class="text-center mb-4">Modifier un site</h1>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
+    </div>
+}
+
+<div class="container">
+    <div class="form-container">
+        <EditForm Model="@site" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <!-- Champs Nom -->
+            <div class="form-group mb-3">
+                <label for="Nom" class="form-label">Nom</label>
+                <InputText id="Nom" class="form-control" @bind-Value="site.Nom" />
+            </div>
+
+            <!-- Bouton de soumission -->
+            <button type="submit" class="btn btn-primary w-100">Modifier</button>
+        </EditForm>
+    </div>
+</div>
+
+<!-- Retour au lien -->
+<button class="retour-link bouton btn btn-secondary mb-3" @onclick="GoBack">Retour</button>
+
+@code {
+    [Parameter] public string siteId { get; set; }
+    private Site site = new Site();
+    private string errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Récupérer le site à éditer
+            site = await DatabaseService.GetSiteByIdAsync(ulong.Parse(siteId));
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors du chargement des données : {ex.Message}";
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            // Mettre à jour les données du site
+            await DatabaseService.UpdateSiteAsync(site);
+
+            // Rediriger vers la liste des sites
+            Navigation.NavigateTo("/sites");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors de la modification du site : {ex.Message}";
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/sites");
+    }
+}

@@ -4,50 +4,47 @@
 @inject DatabaseService DatabaseService
 @inject IJSRuntime js
 
-<button @onclick="GoBack" class="retour-link bouton">Retour</button>
-<h1>Gestion des groupes</h1>
+<button @onclick="GoBack" class="retour-link bouton btn btn-secondary">Retour</button>
+<h1 class="text-center mt-4">Gestion des groupes</h1>
 
 <div class="container_bouton">
-    <a href="add_groupes" class="bouton">Ajouter un groupe</a>
+    <a href="add_groupes" class="btn btn-primary">Ajouter un groupe</a>
 </div>
 
 @if (groupes == null)
 {
-    <p>Chargement des groupes...</p>
+    <p class="alert alert-info">Chargement des groupes...</p>
 }
 else if (!groupes.Any())
 {
-    <p>Aucun groupe trouvé.</p>
+    <p class="alert alert-warning">Aucun groupe trouvé.</p>
 }
 else
 {
-    <table class="users" border="1">
-        <thead>
-            <tr>
-                <th>Groupe</th>
-                <th>Référent</th>
-                <th>Modifier</th>
-                <th>Supprimer</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var groupe in groupes)
-            {
-                <tr>
-                    <td>@groupe.Nom</td>
-                    <td>@(groupe.Referent != null ? groupe.Referent.Nom + " " + groupe.Referent.Prenom : "Aucun référent")</td>
-                    <td>
-                        <a class="btn btn-warning" href="edit_groupes/@groupe.Id">
-                            Modifier
-                        </a>
-                    </td>
-                    <td>
-                        <button class="btn btn-danger" @onclick="() => ConfirmDelete(groupe.Id)">Supprimer</button>
-                    </td>
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr class="text-center">
+                    <th>Groupe</th>
+                    <th>Référent</th>
+                    <th>Actions</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody class="text-white">
+                @foreach (var groupe in groupes)
+                {
+                    <tr class="text-center">
+                        <td>@groupe.Nom</td>
+                        <td>@(groupe.Referent != null ? groupe.Referent.Nom + " " + groupe.Referent.Prenom : "Aucun référent")</td>
+                        <td>
+                            <a class="btn btn-warning btn-sm m-2" href="edit_groupes/@groupe.Id">Modifier</a>
+                            <button class="btn btn-danger btn-sm m-2" @onclick="() => ConfirmDelete(groupe.Id)">Supprimer</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 
 @code {

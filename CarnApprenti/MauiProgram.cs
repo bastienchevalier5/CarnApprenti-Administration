@@ -39,6 +39,8 @@ namespace CarnApprenti
                 config.ClearProviders();
                 config.AddConsole();
                 config.AddDebug();
+                config.SetMinimumLevel(LogLevel.Information); // Assurez-vous que vous capturez les logs de niveau Information et supérieur
+
             });
 
             var connectionString = "server=192.168.56.56;database=carnapprenti;user=homestead;password=secret;";
@@ -47,6 +49,11 @@ namespace CarnApprenti
                 options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
             builder.Services.AddScoped<DatabaseService>();
+
+            builder.Services.AddScoped<PdfService>();
+
+            builder.Services.AddScoped<ModeleService>();
+
 
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 

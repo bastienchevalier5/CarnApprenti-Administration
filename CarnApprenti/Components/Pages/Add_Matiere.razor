@@ -4,14 +4,14 @@
 @inject DatabaseService DatabaseService
 @inject NavigationManager Navigation
 
-<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+<button class="btn btn-secondary" @onclick="GoBack">Retour</button>
 
-<h3>Ajouter une matière</h3>
+<h3 class="text-center mb-4">Ajouter une matière</h3>
 
 <EditForm Model="newMatiere" OnValidSubmit="HandleAddMatiere">
     <DataAnnotationsValidator />
     <ValidationSummary />
-    <div class="mb-3">
+    <div class="mb-4">
         <label for="matiereNom" class="form-label">Nom de la matière</label>
         <InputText id="matiereNom" class="form-control" @bind-Value="newMatiere.Nom" />
     </div>
@@ -26,7 +26,9 @@
         </InputSelect>
 
     </div>
-    <button type="submit" class="btn btn-primary">Ajouter</button>
+    <div class="d-flex justify-content-center mb-4">
+        <button type="submit" class="btn btn-primary btn-lg">Ajouter</button>
+    </div>
 </EditForm>
 
 @code {

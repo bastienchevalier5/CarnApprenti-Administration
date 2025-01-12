@@ -14,53 +14,65 @@
 @using CsvHelper.Configuration.Attributes
 @using static CarnApprenti.LivretApprentissageContext
 
-<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+<button class="btn btn-primary mb-3" @onclick="GoBack">&#8592; Retour</button>
 
-<h1>Importer des apprenants</h1>
+<h1 class="mb-4">Importer des apprenants</h1>
 
-<div class="form-container">
-    <InputFile OnChange="HandleFileSelected" accept=".csv" />
+<div class="form-container p-4 bg-light rounded shadow-sm">
+    <div class="mb-3">
+        <InputFile OnChange="HandleFileSelected" accept=".csv" class="form-control" />
+    </div>
+
     @if (errorMessage != null)
     {
-        <p class="text-danger">@errorMessage</p>
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
     }
 
     @if (successMessage != null)
     {
-        <p class="text-success">@successMessage</p>
+        <div class="alert alert-success" role="alert">
+            @successMessage
+        </div>
     }
 
     @if (csvData != null)
     {
-        <h3>Récapitulatif de l'importation</h3>
-        <table class="table text-white">
-            <thead>
-                <tr>
-                    <th>Nom</th>
-                    <th>Prénom</th>
-                    <th>Email</th>
-                    <th>Nom du groupe</th>
-                    <th>Statut</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var row in csvData)
-                {
+        <h3 class="mt-4">Récapitulatif de l'importation</h3>
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
                     <tr>
-                        <td>@row.Nom</td>
-                        <td>@row.Prenom</td>
-                        <td>@row.Email</td>
-                        <td>@row.NomGroupe</td>
-                        <td>@row.Statut</td>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Email</th>
+                        <th>Nom du groupe</th>
+                        <th>Statut</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var row in csvData)
+                    {
+                        <tr class="@GetRowClass(row.Statut)">
+                            <td>@row.Nom</td>
+                            <td>@row.Prenom</td>
+                            <td>@row.Email</td>
+                            <td>@row.NomGroupe</td>
+                            <td>@row.Statut</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
 
-        <button class="btn btn-success" @onclick="ImportData">Importer</button>
-        <button class="btn btn-danger" @onclick="CancelImport">Annuler</button>
+        <div class="d-flex justify-content-end mt-3">
+            <button class="btn btn-success me-2" @onclick="ImportData">Importer</button>
+            <button class="btn btn-danger" @onclick="CancelImport">Annuler</button>
+        </div>
     }
 </div>
+
 
 @code {
     private List<ApprenantImportModel> csvData;
@@ -318,5 +330,7 @@
     {
         Navigation.NavigateTo("/users");
     }
+
+    private string GetRowClass(string status) => status.Contains("Erreur") ? "table-danger" : "table-success";
 
 }

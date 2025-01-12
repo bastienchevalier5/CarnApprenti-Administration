@@ -5,42 +5,38 @@
 @using static CarnApprenti.LivretApprentissageContext
 @inject IJSRuntime js
 
-<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
 
-
-<h3>Modifier un formateur</h3>
+<h3 class="text-center mb-4">Modifier un Formateur</h3>
 
 @if (formateurToEdit == null)
 {
-    <p>Chargement du formateur...</p>
+    <p class="text-center">Chargement du formateur...</p>
 }
 else
 {
-    @if (formateurToEdit == null)
-    {
-        <p>Formateur non trouvé ou en cours de chargement...</p>
-    }
-    else
-    {
-        <EditForm Model="formateurToEdit" OnValidSubmit="HandleEditFormateur">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-            <div class="mb-3">
-                <label for="nom" class="form-label">Nom</label>
-                <InputText id="nom" class="form-control" @bind-Value="formateurToEdit.Nom" />
-            </div>
-            <div class="mb-3">
-                <label for="prenom" class="form-label">Prénom</label>
-                <InputText id="prenom" class="form-control" @bind-Value="formateurToEdit.Prenom" />
-            </div>
-            <button type="submit" class="btn btn-primary">Modifier</button>
-        </EditForm>
-    }
+    <EditForm Model="formateurToEdit" OnValidSubmit="HandleEditFormateur">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger mb-3" />
 
+        <div class="mb-4">
+            <label for="nom" class="form-label">Nom</label>
+            <InputText id="nom" class="form-control" @bind-Value="formateurToEdit.Nom" placeholder="Entrez le nom du formateur" />
+        </div>
+
+        <div class="mb-4">
+            <label for="prenom" class="form-label">Prénom</label>
+            <InputText id="prenom" class="form-control" @bind-Value="formateurToEdit.Prenom" placeholder="Entrez le prénom du formateur" />
+        </div>
+
+        <div class="d-flex justify-content-center mb-4">
+            <button type="submit" class="btn btn-primary btn-lg">Modifier le Formateur</button>
+        </div>
+    </EditForm>
 }
 
 @code {
-    [Parameter] 
+    [Parameter]
     public string formateurId { get; set; }
 
     private Formateur? formateurToEdit;
@@ -69,8 +65,6 @@ else
         }
     }
 
-
-
     private async Task HandleEditFormateur()
     {
         try
@@ -84,7 +78,6 @@ else
             // Gérer l'erreur (par exemple afficher un message d'erreur)
         }
     }
-
 
     private void GoBack()
     {

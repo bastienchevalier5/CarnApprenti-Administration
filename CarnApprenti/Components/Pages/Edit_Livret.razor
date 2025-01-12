@@ -1,0 +1,108 @@
+﻿@page "/edit_livret/{livretId}"
+@using Microsoft.AspNetCore.Components.Forms
+@using static CarnApprenti.LivretApprentissageContext
+@inject DatabaseService DatabaseService
+@inject NavigationManager Navigation
+@inject IJSRuntime js
+
+<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
+
+<h1 class="text-center mt-4 mb-5">Modifier un livret</h1>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <h2>Chargement des données...</h2>
+    </div>
+}
+else
+{
+    <EditForm Model="livret" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-group mb-4">
+            <label for="modeleId" class="form-label">Choisir un modèle</label>
+            <InputSelect id="modeleId" class="form-control" @bind-Value="livret.ModeleId">
+                <option value="">Sélectionner un modèle</option>
+                @foreach (var modele in modeles)
+                {
+                    <option value="@modele.Id">@modele.Nom</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="form-group mb-4">
+            <label for="userId" class="form-label">Choisir un apprenant</label>
+            <InputSelect id="userId" class="form-control" @bind-Value="livret.UserId">
+                <option value="">Sélectionner un apprenant</option>
+                @foreach (var apprenant in apprenants)
+                {
+                    <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div class="d-flex justify-content-center">
+            <button type="submit" class="btn btn-primary btn-lg">Enregistrer</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public string livretId { get; set; }  // Paramètre de l'ID du livret à éditer
+    private bool isLoading = true;
+    private Livret livret = new Livret();  // Livret à éditer
+    private List<Modele> modeles = new List<Modele>();
+    private List<User> apprenants = new List<User>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            // Charger les modèles et les apprenants
+            modeles = await DatabaseService.GetModelesAsync();
+            apprenants = await DatabaseService.GetApprenantsAsync();
+
+            // Charger le livret existant pour l'éditer
+            livret = await DatabaseService.GetLivretByIdAsync(ulong.Parse(livretId)); // Récupérer le livret à partir de son ID
+
+            // Assurez-vous que le livret a bien été récupéré
+            if (livret == null)
+            {
+                Console.WriteLine($"Le livret avec l'ID {livretId} n'a pas été trouvé.");
+                Navigation.NavigateTo("/livrets");
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur lors du chargement des données : {ex.Message}");
+        }
+
+        isLoading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            // Mettre à jour le livret dans la base de données
+            await DatabaseService.UpdateLivretAsync(livret);
+
+            // Rediriger vers la page des livrets après l'édition
+            Navigation.NavigateTo("/livrets");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur lors de la mise à jour du livret : {ex.Message}");
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/livrets");
+    }
+}

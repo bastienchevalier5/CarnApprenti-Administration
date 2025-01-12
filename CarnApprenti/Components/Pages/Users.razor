@@ -1,20 +1,24 @@
 ﻿@page "/users"
+@using static CarnApprenti.LivretApprentissageContext
 @inject NavigationManager Navigation
 @inject DatabaseService DatabaseService
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
 @inject IJSRuntime js
-<button class="retour-link bouton" @onclick="GoBack">Retour</button>
-<h1>Gestion des utilisateurs</h1>
 
-<div class="container_bouton">
-    <a href="add_user" class="btn btn-primary">Création d'utilisateur</a>
-    <a href="import_apprenants" class="btn btn-primary">Importer des apprenants</a>
+<button class="retour-link bouton btn btn-secondary" @onclick="GoBack">Retour</button>
+<h1 class="text-center mt-4">Gestion des utilisateurs</h1>
+
+<div class="container my-4">
+    <div class="d-flex justify-content-between">
+        <a href="add_user" class="btn btn-primary">Création d'utilisateur</a>
+        <a href="import_apprenants" class="btn btn-info">Importer des apprenants</a>
+    </div>
 </div>
 
 @if (users == null)
 {
     <p>Chargement des utilisateurs...</p>
-    <p>@errorMessage</p>
+    <p class="text-danger">@errorMessage</p>
 }
 else if (users.Count == 0)
 {
@@ -22,47 +26,62 @@ else if (users.Count == 0)
 }
 else
 {
-    <table class="users" border="1">
-        <thead>
-            <tr>
-                <th>Nom</th>
-                <th>Prénom</th>
-                <th>Mail</th>
-                <th>Role</th>
-                <th>Groupe</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var user in users)
-            {
-                var roles = userRoles.ContainsKey(user.Id) ? userRoles[user.Id] : new List<string> { "Aucun rôle" };
-                <tr>
-                    <td>@user.Nom</td>
-                    <td>@user.Prenom</td>
-                    <td>@user.Email</td>
-                    <td>
-                        @foreach (var role in roles)
-                        {
-                            <span>@role</span>
-                            <br />
-                        }
-                    </td>
-                    <td>@user.Groupe?.Nom</td>
-                    <td>
-                        @if (user.Id != currentUserId)
-                        {
-                            <a href="edit_user/@user.Id" class="btn btn-warning">Modifier</a>
-                        }
-                        @if (user.Id != currentUserId)
-                        {
-                            <button class="btn btn-danger" @onclick="() => DeleteUser(user.Id)">Supprimer</button>
-                        }
-                    </td>
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr class="text-center">
+                    <th>Nom</th>
+                    <th>Prénom</th>
+                    <th>Mail</th>
+                    <th>Role</th>
+                    <th>Groupe</th>
+                    <th>Apprenants Associés</th>
+                    <th>Actions</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody class="text-white">
+                <!-- Applique le texte blanc à tout le corps du tableau -->
+                @foreach (var user in users)
+                {
+                    var roles = userRoles.ContainsKey(user.Id) ? userRoles[user.Id] : new List<string> { "Aucun rôle" };
+                    var apprenantsAssocies = userRoles.ContainsKey(user.Id) && roles.Contains("tuteur")
+                    ? apprenants[user.Id]?.Select(apprenant => $"{apprenant.Nom} {apprenant.Prenom}").ToList()
+                    : new List<string> { "Aucun apprenant" };
+
+                    <tr class="text-center">
+                        <td>@user.Nom</td>
+                        <td>@user.Prenom</td>
+                        <td>@user.Email</td>
+                        <td>
+                            @foreach (var role in roles)
+                            {
+                                <span>@role</span>
+                                <br />
+                            }
+                        </td>
+                        <td>@(user.Groupe != null ? user.Groupe.Nom : "Aucun groupe")</td>
+                        <td>
+                            @foreach (var apprenant in apprenantsAssocies)
+                            {
+                                <span>@apprenant</span>
+                                <br />
+                            }
+                        </td>
+                        <td>
+                            @if (user.Id != currentUserId)
+                            {
+                                <a href="edit_user/@user.Id" class="btn btn-warning btn-sm m-2">Modifier</a> <!-- Ajout de "me-2" pour espacer les boutons -->
+                            }
+                            @if (user.Id != currentUserId)
+                            {
+                                <button class="btn btn-danger btn-sm m-2" @onclick="() => DeleteUser(user.Id)">Supprimer</button> <!-- Espacement également pour ce bouton -->
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 
 @code {
@@ -70,6 +89,7 @@ else
     private ulong? currentUserId;
     private string errorMessage;
     private Dictionary<ulong, List<string>> userRoles = new Dictionary<ulong, List<string>>(); // Dictionnaire global
+    private Dictionary<ulong, List<User>> apprenants = new Dictionary<ulong, List<User>>(); // Pour stocker les apprenants associés
 
     protected override async Task OnInitializedAsync()
     {
@@ -97,8 +117,14 @@ else
             {
                 var role = await DatabaseService.GetUserRolesAsync(user.Id);  // Récupère un rôle par utilisateur
                 userRoles[user.Id] = new List<string> { role };  // Enregistrer le rôle de l'utilisateur dans le dictionnaire
-            }
 
+                // Si l'utilisateur est un tuteur, récupérer ses apprenants associés
+                if (role == "tuteur")
+                {
+                    var apprenantsAssocies = await DatabaseService.GetApprenantsForTuteurAsync(user.Id);
+                    apprenants[user.Id] = apprenantsAssocies; // Stocker les apprenants associés
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -126,6 +152,6 @@ else
 
     private void GoBack()
     {
-        Navigation.NavigateTo("/");
+        Navigation.NavigateTo("/"); // Retour à la page précédente
     }
 }

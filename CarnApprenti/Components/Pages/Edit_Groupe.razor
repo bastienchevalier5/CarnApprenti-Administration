@@ -4,23 +4,22 @@
 @inject IJSRuntime js
 @inject NavigationManager Navigation
 
-<button class="retour-link bouton" @onclick="GoBack">Retour</button>
+<button class="btn btn-secondary mb-4" @onclick="GoBack">Retour</button>
 
-<h1>Modifier un groupe</h1>
+<h1 class="text-center mb-4">Modifier un groupe</h1>
 
 <EditForm Model="newGroupe" OnValidSubmit="HandleValidSubmit">
     <DataAnnotationsValidator />
     <ValidationSummary />
 
-    <div class="form-group">
-        <label for="groupeName">Nom du groupe</label>
+    <div class="form-group mb-3">
+        <label for="groupeName" class="form-label">Nom du groupe</label>
         <InputText id="groupeName" class="form-control" @bind-Value="newGroupe.Nom" />
     </div>
 
-    <div class="form-group">
-        <label for="referent">Référent</label>
+    <div class="form-group mb-3">
+        <label for="referent" class="form-label">Référent</label>
         <InputSelect id="referent" class="form-control" @bind-Value="selectedReferentId">
-            <option value="">Sélectionner un référent</option>  <!-- Valeur vide pour l'option par défaut -->
             @foreach (var referent in referents)
             {
                 <option value="@referent.Id">@referent.Nom @referent.Prenom</option>
@@ -28,13 +27,50 @@
         </InputSelect>
     </div>
 
-    <button type="submit" class="btn btn-primary">Mettre à jour le groupe</button>
+    <!-- Sélectionner les matières et formateurs -->
+    <div class="form-group mb-3">
+        <label for="matieres" class="form-label">Equipe pédagogique</label>
+        <table class="table" id="equipe_pedagogique">
+            <thead>
+                <tr>
+                    <th>Matière</th>
+                    <th>Formateur</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in equipePedagogique)
+                {
+                    <tr>
+                        <td>
+                            <InputSelect @bind-Value="item.MatiereId" class="form-control">
+                                @foreach (var matiere in matieres)
+                                {
+                                    <option value="@matiere.Id">@matiere.Nom (@matiere.Formateur.Prenom @matiere.Formateur.Nom)</option>
+                                }
+                            </InputSelect>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-danger" @onclick="() => RemoveRow(item)">Supprimer</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <button type="button" class="btn btn-success" @onclick="AddRow">Ajouter une ligne</button>
+    </div>
+
+    <div class="d-flex justify-content-center mb-4">
+        <button type="submit" class="btn btn-primary btn-lg">Mettre à jour le groupe</button>
+    </div>
 </EditForm>
 
 @code {
     private Groupe newGroupe = new Groupe();
     private List<User> referents = new List<User>();
-    private ulong? selectedReferentId = null;  // Utiliser nullable pour la gestion du cas sans référent
+    private List<Matiere> matieres = new List<Matiere>();
+    private List<EquipePedagogiqueItem> equipePedagogique = new List<EquipePedagogiqueItem>();
+    private ulong? selectedReferentId;
 
     [Parameter]
     public string groupId { get; set; }
@@ -43,59 +79,76 @@
     {
         try
         {
-            // Charger la liste des référents
             referents = await DatabaseService.GetReferentsAsync();
+            matieres = await DatabaseService.GetMatieresWithFormateursAsync(); // Charge matières avec formateurs associés
 
-            // Charger le groupe existant en utilisant l'ID du groupe
             if (ulong.TryParse(groupId, out ulong id))
             {
                 newGroupe = await DatabaseService.GetGroupeByIdAsync(id);
 
-                // Si un groupe est trouvé, initialisez le référent sélectionné
-                if (newGroupe != null)
+                // Récupérer les matières et formateurs associés au groupe
+                var groupeMatieres = await DatabaseService.GetMatieresForGroupeAsync(id);
+                foreach (var matiere in groupeMatieres)
                 {
-                    // Sélectionner le référent actuel en fonction de l'IdGroupe
-                    var referent = referents.FirstOrDefault(r => r.GroupeId == newGroupe.Id);
-                    if (referent != null)
-                    {
-                        selectedReferentId = referent.Id;  // Si un référent est trouvé, le sélectionner
-                    }
-                    else
-                    {
-                        selectedReferentId = null; // Aucun référent, donc option par défaut
-                    }
+                    equipePedagogique.Add(new EquipePedagogiqueItem
+                        {
+                            MatiereId = matiere.Id,
+                        });
+                }
+
+                // Charger le référent
+                var referent = referents.FirstOrDefault(r => r.GroupeId == newGroupe.Id);
+                if (referent != null)
+                {
+                    selectedReferentId = referent.Id;
                 }
             }
         }
         catch (Exception ex)
         {
-            await js.InvokeVoidAsync("alert", $"Erreur lors du chargement du groupe : {ex.Message}");
+            await js.InvokeVoidAsync("alert", $"Erreur lors du chargement des données : {ex.Message}");
         }
+    }
+
+    private void AddRow()
+    {
+        equipePedagogique.Add(new EquipePedagogiqueItem());
+    }
+
+    private void RemoveRow(EquipePedagogiqueItem item)
+    {
+        equipePedagogique.Remove(item);
     }
 
     private async Task HandleValidSubmit()
     {
         try
         {
-            // Mettre à jour le groupe dans la base de données
-            newGroupe.UpdatedAt = DateTime.UtcNow;  // Mettre à jour la date de modification
-
             await DatabaseService.UpdateGroupeAsync(newGroupe);
 
-            // Si un référent est sélectionné, affectez-le au groupe
+            // Supprimer les anciennes matières
+            await DatabaseService.RemoveAllMatieresFromGroupeAsync(newGroupe.Id);
+
+            // Ajouter les nouvelles matières et formateurs
+            foreach (var item in equipePedagogique)
+            {
+                if (item.MatiereId > 0)
+                {
+                    await DatabaseService.AddMatiereToGroupeAsync(newGroupe.Id, item.MatiereId);
+                }
+            }
+
+            // Mettre à jour le référent si sélectionné
             if (selectedReferentId.HasValue)
             {
                 var referent = referents.FirstOrDefault(r => r.Id == selectedReferentId.Value);
                 if (referent != null)
                 {
-                    referent.GroupeId = newGroupe.Id; // Affecter le groupe au référent
-
-                    // Mettre à jour l'utilisateur (référent)
+                    referent.GroupeId = newGroupe.Id;
                     await DatabaseService.UpdateUserAsync(referent);
                 }
             }
 
-            // Rediriger vers la page des groupes après la mise à jour
             Navigation.NavigateTo("/groupes");
         }
         catch (Exception ex)
@@ -106,6 +159,13 @@
 
     private void GoBack()
     {
-        Navigation.NavigateTo("/groupes"); // Revenir à la page des groupes
+        Navigation.NavigateTo("/groupes");
+    }
+
+    public class EquipePedagogiqueItem
+    {
+        public ulong MatiereId { get; set; }
+        public ulong FormateurId { get; set; }
+        public List<User> MatiereFormateurs { get; set; } = new List<User>(); // Liste des formateurs associés à la matière
     }
 }

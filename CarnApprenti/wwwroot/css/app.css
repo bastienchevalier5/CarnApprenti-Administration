@@ -361,6 +361,7 @@ header {
 
 .bouton:hover {
     background-color: var(--pastel-green);
+    text-decoration:none;
     color: var(--clr);
     transition: 0.3s;
 }

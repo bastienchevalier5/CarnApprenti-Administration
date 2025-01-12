@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using static CarnApprenti.LivretApprentissageContext;
 using MySql.Data.MySqlClient;
 using System.Data;
+using System.Globalization;
+using System.Diagnostics;
 
 namespace CarnApprenti
 {
@@ -598,7 +600,639 @@ namespace CarnApprenti
             }
         }
 
+        public async Task<List<Livret>> GetLivretsAsync()
+        {
+            return await _context.Livrets
+                .Include(l => l.User)  // Récupère les informations liées à l'utilisateur (l'apprenant)
+                .Include(l => l.Modele) // Récupère les informations liées au modèle
+                .ToListAsync();
+        }
 
+        // Supprimer un livret par son ID
+        public async Task DeleteLivretAsync(ulong livretId)
+        {
+            var livret = await _context.Livrets.FindAsync(livretId);
+            if (livret != null)
+            {
+                _context.Livrets.Remove(livret);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task AddLivretAsync(Livret livret)
+        {
+            _context.Livrets.Add(livret);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<User>> GetApprenantsAsync()
+        {
+            try
+            {
+                // Step 1: Retrieve all assigned roles with the role name "referent"
+                var apprenantIds = await _context.AssignedRoles
+                    .Include(ar => ar.Role)  // Include the related Role entity
+                    .Where(ar => ar.Role.Name == "apprenant")
+                    .Select(ar => ar.EntityId)  // Select the IDs of users with the "apprenant" role
+                    .ToListAsync();
+
+                // Step 2: Retrieve users whose IDs match the referent IDs
+                var users = await _context.Users
+                    .Where(u => apprenantIds.Contains(u.Id))  // Filter users based on the referent IDs
+                    .ToListAsync();
+
+                return users;
+            }
+            catch (Exception ex)
+            {
+                // Log the exception or handle it as needed
+                throw new Exception("Erreur lors de la récupération des apprenants.", ex);
+            }
+        }
+
+        public async Task<List<User>> GetApprenantsForTuteurAsync(ulong tuteurId)
+        {
+            try
+            {
+                // Récupérer tous les utilisateurs où le ApprenantId correspond à l'ID de l'apprenant
+                var apprenant = await _context.Users
+                    .Where(u => tuteurId == u.Id)
+                    .Select(u => u.Apprenant)  // Filtrer par ApprenantId
+                    .ToListAsync();  // Récupérer les utilisateurs
+
+                return apprenant;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Erreur lors de la récupération des tuteurs associés.", ex);
+            }
+        }
+
+        public async Task<Livret> GetLivretByIdAsync(ulong livretId)
+        {
+            return await _context.Livrets
+                .FirstOrDefaultAsync(l => l.Id == livretId);
+        }
+
+        public async Task UpdateLivretAsync(Livret livret)
+        {
+            _context.Livrets.Update(livret);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<string>> GetPeriodesAsync(ulong livretId)
+        {
+            try
+            {
+                var periodes = new List<string>();
+
+                // Récupérer les comptes rendus pour le livret donné
+                var comptesRendus = await _context.CompteRendus
+                    .Where(cr => cr.LivretId == livretId)
+                    .ToListAsync();
+
+                // Récupérer les périodes uniques
+                foreach (var cr in comptesRendus)
+                {
+                    var periode = cr.Periode;
+                    if (!periodes.Contains(periode))
+                    {
+                        periodes.Add(periode);
+                    }
+                }
+
+                return periodes;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors de la récupération des périodes : {ex.Message}");
+                return new List<string>(); // Retourner une liste vide en cas d'erreur
+            }
+        }
+
+
+        public async Task<CompteRendu> GetCompteRenduAsync(ulong livretId, string periode)
+        {
+            try
+            {
+                // Recherche du compte rendu correspondant à la période donnée
+                var compteRendu = await _context.CompteRendus
+                    .FirstOrDefaultAsync(cr => cr.LivretId == livretId && cr.Periode == periode);
+
+                return compteRendu;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors de la récupération du compte rendu : {ex.Message}");
+                return null; // Retourner null en cas d'erreur
+            }
+        }
+
+
+        public async Task AddCompteRenduAsync(CompteRendu compteRendu)
+        {
+            try
+            {
+                // Ajouter le compte rendu à la base de données
+                _context.CompteRendus.Add(compteRendu);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors de l'ajout du compte rendu : {ex.Message}");
+                throw; // Relancer l'exception pour être gérée ailleurs
+            }
+        }
+
+
+        public async Task UpdateCompteRenduAsync(CompteRendu compteRendu)
+        {
+            try
+            {
+                // Rechercher le compte rendu existant basé sur la période et le livretId
+                var existingCompteRendu = await _context.CompteRendus
+                    .FirstOrDefaultAsync(cr => cr.LivretId == compteRendu.LivretId && cr.Periode == compteRendu.Periode);
+
+                if (existingCompteRendu != null)
+                {
+                    // Mettre à jour les propriétés du compte rendu
+                    existingCompteRendu.ActivitesPro = compteRendu.ActivitesPro;
+                    existingCompteRendu.ObservationsApprenti = compteRendu.ObservationsApprenti;
+                    existingCompteRendu.ObservationsTuteur = compteRendu.ObservationsTuteur;
+                    existingCompteRendu.ObservationsReferent = compteRendu.ObservationsReferent;
+
+                    // Sauvegarder les modifications
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    throw new Exception("Compte rendu introuvable pour cette période.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors de la mise à jour du compte rendu : {ex.Message}");
+                throw; // Relancer l'exception pour être gérée ailleurs
+            }
+        }
+
+        public async Task UpdateLivretObservationsAsync(Livret livret)
+        {
+            var existingLivret = await _context.Livrets
+                .FirstOrDefaultAsync(l => l.Id == livret.Id);
+
+            if (existingLivret != null)
+            {
+                existingLivret.ObservationApprentiGlobal = livret.ObservationApprentiGlobal;
+                existingLivret.ObservationAdmin = livret.ObservationAdmin;
+                existingLivret.UpdatedAt = DateTime.UtcNow;  // Mettre à jour le champ UpdatedAt
+
+                // Sauvegarder les changements dans la base de données
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task AddMatiereToGroupeAsync(ulong groupeId, ulong matiereId)
+        {
+            // Vérifiez si une entrée pour ce groupe, matière et formateur existe déjà
+            var existingRelation = await _context.GroupeMatieres
+                .FirstOrDefaultAsync(gmf => gmf.GroupeId == groupeId && gmf.MatiereId == matiereId);
+
+            // Si cette relation existe déjà, on n'ajoute rien
+            if (existingRelation != null)
+            {
+                return; // Relation déjà présente, rien à faire
+            }
+
+            // Créez une nouvelle relation groupe-matière-formateur
+            var newRelation = new GroupeMatiere
+            {
+                GroupeId = groupeId,
+                MatiereId = matiereId,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
+            };
+
+            // Ajoutez la relation à la base de données
+            _context.GroupeMatieres.Add(newRelation);
+
+            // Sauvegardez les changements dans la base de données
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<Matiere>> GetMatieresForGroupeAsync(ulong groupeId)
+        {
+            try
+            {
+                // Récupère les matières associées à un groupe donné via la table pivot
+                var matieres = await _context.GroupeMatieres
+                    .Where(gm => gm.GroupeId == groupeId)
+                    .Select(gm => gm.Matiere)
+                    .ToListAsync();
+
+                return matieres;
+            }
+            catch (Exception ex)
+            {
+                // Gérer l'exception selon votre besoin, par exemple enregistrer l'erreur dans un log
+                throw new Exception($"Erreur lors de la récupération des matières pour le groupe {groupeId}: {ex.Message}");
+            }
+        }
+
+        public async Task RemoveAllMatieresFromGroupeAsync(ulong groupeId)
+        {
+            try
+            {
+                // Récupérer toutes les relations entre le groupe et ses matières
+                var groupeMatieres = await _context.GroupeMatieres
+                    .Where(gm => gm.GroupeId == groupeId)
+                    .ToListAsync();
+
+                // Supprimer toutes les relations
+                _context.GroupeMatieres.RemoveRange(groupeMatieres);
+
+                // Sauvegarder les changements dans la base de données
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // Gérer l'exception selon votre besoin
+                throw new Exception($"Erreur lors de la suppression des matières pour le groupe {groupeId}: {ex.Message}");
+            }
+        }
+
+        public async Task<List<Matiere>> GetMatieresWithFormateursAsync()
+        {
+            // Supposons que vous ayez une relation entre Matiere et Formateur dans la base de données.
+            return await _context.Matieres
+                                 .Include(m => m.Formateur) // Inclure les formateurs associés
+                                 .ToListAsync();
+        }
+
+        public async Task<List<Personnel>> GetPersonnelsAsync()
+        {
+            return await _context.Personnels.ToListAsync();
+
+        }
+
+        public async Task DeletePersonnelAsync(ulong personnelId)
+        {
+            var personnel = await _context.Personnels.FindAsync(personnelId);
+            if (personnel != null)
+            {
+                _context.Personnels.Remove(personnel);
+                await _context.SaveChangesAsync();
+            }
+
+        }
+
+        public async Task AddPersonnelAsync(Personnel personnel)
+        {
+            try
+            {
+                _context.Personnels.Add(personnel);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Erreur lors de l'ajout du personnel : {ex.Message}", ex);
+            }
+        }
+
+        public async Task AddPersonnelSiteAsync(ulong personnel_id, ulong site_id)
+        {
+            try
+            {
+                _logger.LogInformation($"Tentative d'ajout personnel_site: {personnel_id}-{site_id}");
+
+                var personnelsite = new PersonnelSite
+                {
+                    PersonnelId = personnel_id,
+                    SiteId = site_id
+                };
+
+                _context.PersonnelSites.Add(personnelsite);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Relation ajoutée avec succès");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Erreur lors de l'ajout personnel_site: {ex}");
+                throw;
+            }
+        }
+
+        public async Task ClearPersonnelSitesAsync(ulong personnelId)
+        {
+            // Fetch all PersonnelSite entries for the given personnel
+            var personnelSites = _context.PersonnelSites.Where(ps => ps.PersonnelId == personnelId);
+
+            // Remove all fetched entries
+            _context.PersonnelSites.RemoveRange(personnelSites);
+
+            // Save changes to the database
+            await _context.SaveChangesAsync();
+        }
+
+
+        public async Task<Personnel> GetPersonnelByIdAsync(ulong personnelId)
+        {
+            try
+            {
+                // Fetch the personnel record from the database
+                var personnel = await _context.Personnels
+                    .Where(p => p.Id == personnelId)
+                    .FirstOrDefaultAsync();
+
+                if (personnel == null)
+                {
+                    throw new Exception("Personnel not found.");
+                }
+
+                return personnel;
+            }
+            catch (Exception ex)
+            {
+                // Handle exceptions, such as database errors
+                throw new Exception($"An error occurred while fetching the personnel: {ex.Message}");
+            }
+        }
+
+        public async Task UpdatePersonnelAsync(Personnel personnel)
+        {
+            try
+            {
+                // Fetch the personnel record from the database by ID
+                var existingPersonnel = await _context.Personnels
+                    .Where(p => p.Id == personnel.Id)
+                    .FirstOrDefaultAsync();
+
+                if (existingPersonnel == null)
+                {
+                    throw new Exception("Personnel not found.");
+                }
+
+                // Update the properties of the existing personnel
+                existingPersonnel.Nom = personnel.Nom;
+                existingPersonnel.Prenom = personnel.Prenom;
+                existingPersonnel.Telephone = personnel.Telephone;
+                existingPersonnel.Mail = personnel.Mail;
+                existingPersonnel.Description = personnel.Description;
+
+                // Save the changes to the database
+                _context.Personnels.Update(existingPersonnel);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // Handle exceptions, such as database errors
+                throw new Exception($"An error occurred while updating the personnel: {ex.Message}");
+            }
+        }
+
+        public async Task<List<LivretApprentissageContext.Site>> GetSitesAsync()
+        {
+            try
+            {
+                return await _context.Sites.ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Erreur lors de la récupération des sites : {ex.Message}", ex);
+            }
+        }
+
+        // Supprimer un site
+        public async Task DeleteSiteAsync(ulong siteId)
+        {
+            try
+            {
+                var site = await _context.Sites.FindAsync(siteId);
+                if (site == null)
+                {
+                    throw new Exception("Site introuvable.");
+                }
+
+                _context.Sites.Remove(site);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Erreur lors de la suppression du site : {ex.Message}", ex);
+            }
+        }
+
+        public async Task AddSiteAsync(LivretApprentissageContext.Site newSite)
+        {
+            try
+            {
+                // Ajouter le nouveau site à la base de données
+                await _context.Sites.AddAsync(newSite);
+
+                // Sauvegarder les changements
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Erreur lors de l'ajout du site : {ex.Message}", ex);
+            }
+        }
+
+        public async Task<LivretApprentissageContext.Site> GetSiteByIdAsync(ulong siteId)
+        {
+            try
+            {
+                // Rechercher le site par son ID
+                var site = await _context.Sites.FindAsync(siteId);
+
+                if (site == null)
+                {
+                    throw new Exception($"Aucun site trouvé avec l'ID {siteId}");
+                }
+
+                return site;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Erreur lors de la récupération du site : {ex.Message}", ex);
+            }
+        }
+
+        public async Task UpdateSiteAsync(LivretApprentissageContext.Site updatedSite)
+        {
+            try
+            {
+                // Vérifier si le site existe dans la base de données
+                var existingSite = await _context.Sites.FindAsync(updatedSite.Id);
+
+                if (existingSite == null)
+                {
+                    throw new Exception($"Aucun site trouvé avec l'ID {updatedSite.Id}");
+                }
+
+                // Mettre à jour les propriétés nécessaires
+                existingSite.Nom = updatedSite.Nom;
+                existingSite.UpdatedAt = DateTime.UtcNow;
+
+                // Sauvegarder les modifications
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Erreur lors de la mise à jour du site : {ex.Message}", ex);
+            }
+        }
+
+        public async Task<List<Modele>> GetModelesAsync()
+        {
+            try
+            {
+                return await _context.Modeles
+                    .Include(m => m.Groupe) // Charger la relation avec Groupe si nécessaire
+                    .Include(m => m.Site)   // Charger la relation avec Site si nécessaire
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors de la récupération des modèles : {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task DeleteModeleAsync(ulong modeleId)
+        {
+            try
+            {
+                var modele = await _context.Modeles.FindAsync(modeleId);
+
+                if (modele == null)
+                {
+                    throw new Exception($"Modèle avec l'ID {modeleId} non trouvé.");
+                }
+
+                _context.Modeles.Remove(modele);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors de la suppression du modèle : {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<Modele> GetModeleByIdAsync(ulong id)
+        {
+            try
+            {
+                return await _context.Modeles
+                    .Include(m => m.Site)  // Inclure les données liées au site
+                    .FirstOrDefaultAsync(m => m.Id == id);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors de la récupération du modèle avec l'ID {id}: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task UpdateModeleAsync(Modele modele)
+        {
+            try
+            {
+                var existingModele = await _context.Modeles.FindAsync(modele.Id);
+
+                if (existingModele == null)
+                {
+                    Console.WriteLine($"Le modèle avec l'ID {modele.Id} n'a pas été trouvé.");
+                    return;
+                }
+
+                // Mettre à jour les propriétés du modèle
+                existingModele.Nom = modele.Nom;
+                existingModele.Groupe = modele.Groupe;
+                existingModele.SiteId = modele.SiteId;
+
+                // Sauvegarder les modifications dans la base de données
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors de la mise à jour du modèle avec l'ID {modele.Id}: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<List<Composition>> GetCompositionsAsync()
+        {
+            return await _context.Compositions.ToListAsync();
+        }
+
+        public async Task DeleteCompositionAsync(ulong compositionId)
+        {
+            var composition = await _context.Compositions.FindAsync(compositionId);
+            if (composition != null)
+            {
+                _context.Compositions.Remove(composition);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task<int> AddModeleAsync(Modele modele)
+        {
+            modele.CreatedAt = DateTime.UtcNow;
+            modele.UpdatedAt = DateTime.UtcNow;
+            _context.Modeles.Add(modele);
+            await _context.SaveChangesAsync();
+            return (int)modele.Id;
+        }
+
+        public async Task AddCompositionAsync(Composition composition)
+        {
+            _context.Compositions.Add(composition);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<Composition>> GetCompositionsByModeleIdAsync(ulong modeleId)
+        {
+            try
+            {
+                // Fetch compositions linked to the given Modele ID
+                return await _context.Compositions
+                    .Where(c => c.ModeleId == modeleId)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching compositions for Modele ID {modeleId}: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task UpdateCompositionAsync(Composition updatedComposition)
+        {
+            try
+            {
+                var existingComposition = await _context.Compositions.FindAsync(updatedComposition.Id);
+                if (existingComposition == null)
+                {
+                    throw new InvalidOperationException($"Composition with ID {updatedComposition.Id} not found");
+                }
+
+                // Update fields
+                existingComposition.Nom = updatedComposition.Nom;
+                existingComposition.Lien = updatedComposition.Lien;
+                existingComposition.UpdatedAt = updatedComposition.UpdatedAt;
+
+                // Save changes to the database
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating composition with ID {updatedComposition.Id}: {ex.Message}");
+                throw;
+            }
+        }
 
     }
 }

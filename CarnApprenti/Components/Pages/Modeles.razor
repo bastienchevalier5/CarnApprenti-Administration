@@ -1,0 +1,121 @@
+﻿@page "/modeles"
+@using Microsoft.AspNetCore.Components.Forms
+@using static CarnApprenti.LivretApprentissageContext
+@inject DatabaseService DatabaseService
+@inject NavigationManager Navigation
+@inject ModeleService ModeleService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject IJSRuntime js
+
+<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
+
+<h1 class="text-center m-4">Gestion des Modèles</h1>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <h2>Chargement en cours...</h2>
+    </div>
+}
+else
+{
+    <div class="container_bouton">
+        <a class="btn btn-primary" href="add_modele">Ajouter un modèle</a>
+    </div>
+
+    @if (modeles != null && modeles.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr class="text-center">
+                        <th>Nom</th>
+                        <th>Groupe</th>
+                        <th>Site</th>
+                        <th>PDF</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-white">
+                    @foreach (var modele in modeles)
+                    {
+                        <tr class="text-center">
+                            <td>@modele.Nom</td>
+                            <td>@modele.Groupe.Nom</td>
+                            <td>@modele.Site.Nom</td>                            
+                            <td>
+                                <button class="btn btn-info btn-sm" @onclick="() => DownloadPdf(modele.Id)">Télécharger le PDF</button>
+                            </td>
+                            <td>
+                                <a class="btn btn-warning btn-sm m-2" href="edit_modele/@modele.Id">Modifier</a>
+                                <button class="btn btn-danger btn-sm m-2" @onclick="() => DeleteModele(modele.Id)">Supprimer</button>
+                            </td>
+                        </tr>
+                        
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p class="text-center alert alert-warning">Aucun modèle disponible.</p>
+    }
+}
+
+@code {
+    private bool isLoading = true;
+    private List<Modele> modeles = new List<Modele>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            modeles = await DatabaseService.GetModelesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur lors du chargement des modèles : {ex.Message}");
+        }
+
+        isLoading = false;
+    }
+
+    private async Task DeleteModele(ulong modeleId)
+    {
+        // Confirmation avant de supprimer
+        bool confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer ce modèle ?");
+        if (confirmed)
+        {
+            try
+            {
+                await DatabaseService.DeleteModeleAsync(modeleId);
+                modeles = await DatabaseService.GetModelesAsync(); // Recharger les modèles après suppression
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors de la suppression du modèle : {ex.Message}");
+            }
+        }
+    }
+
+    private async Task DownloadPdf(ulong modeleId)
+    {
+        var modele = modeles.FirstOrDefault(m => m.Id == modeleId);
+        if (modele == null) return;
+
+        var pdfBytes = await ModeleService.GeneratePdfAsync(modeleId);
+
+        var base64 = Convert.ToBase64String(pdfBytes);
+        var fileUrl = $"data:application/pdf;base64,{base64}";
+
+        await js.InvokeVoidAsync("saveAs", fileUrl, "modele.pdf");
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/"); // Retour à la page d'accueil
+    }
+}

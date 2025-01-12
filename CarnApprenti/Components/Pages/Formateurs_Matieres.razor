@@ -7,69 +7,86 @@
 
 @if (isLoading)
 {
-    <p>Chargement des données...</p>
+    <div class="text-center my-5">
+        <p>Chargement des données...</p>
+    </div>
 }
 else
 {
-<button class="retour-link bouton" @onclick="GoBack">Retour</button>
-
-<h3>Gestion des formateurs et des matières</h3>
-<a href="import_formateurs_matieres" class="btn btn-primary">Importer des Formateurs et Matières</a>
-<div class="formateurs">
-    <h4>Formateurs</h4>    
-    <a href="add_formateur" class="btn btn-primary">Ajouter un formateur</a>
-    <table class="users" border="1">
-        <thead>
-            <tr>
-                <th>Nom</th>
-                <th>Prénom</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var formateur in formateurs)
-            {
-                <tr>
-                    <td>@formateur.Nom</td>
-                    <td>@formateur.Prenom</td>
-                    <td>
-                        <a href="edit_formateur/@formateur.Id" class="btn btn-warning">Modifier</a>
-                        <button class="btn btn-danger" @onclick="() => DeleteFormateur(formateur.Id)">Supprimer</button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+     <button class="btn btn-secondary" @onclick="GoBack">Retour</button>
     
-</div>
 
-<div class="matieres">
-    <h4>Matières</h4>
-    <a href="add_matiere" class="btn btn-primary">Ajouter une matière</a>
-    <table class="users" border="1">
-        <thead>
-            <tr>
-                <th>Nom de la matière</th>
-                <th>Formateur</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var matiere in matieres)
-            {
-                <tr>
-                    <td>@matiere.Nom</td>
-                    <td>@matiere.Formateur?.Nom @matiere.Formateur?.Prenom</td>
-                    <td>
-                        <a href="edit_matiere/@matiere.Id" class="btn btn-warning">Modifier</a>
-                        <button class="btn btn-danger" @onclick="() => DeleteMatiere(matiere.Id)">Supprimer</button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-    
-</div>
+    <!-- Titre principal centré -->
+    <h3 class="text-center mb-4">Gestion des formateurs et des matières</h3>
+
+    <!-- Bouton Importer centré -->
+    <div class="text-center mb-4">
+        <a href="import_formateurs_matieres" class="btn btn-primary">Importer des Formateurs et Matières</a>
+    </div>
+
+    <!-- Section des formateurs -->
+    <div class="formateurs mb-5">
+        <h4 class="text-center mb-3">Formateurs</h4>
+        <div class="text-center mb-3">
+            <a href="add_formateur" class="btn btn-primary">Ajouter un formateur</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr class="text-center">
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-white">
+                    @foreach (var formateur in formateurs)
+                    {
+                        <tr class="text-center">
+                            <td>@formateur.Nom</td>
+                            <td>@formateur.Prenom</td>
+                            <td>
+                                <a href="edit_formateur/@formateur.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
+                                <button class="btn btn-danger btn-sm m-2" @onclick="() => DeleteFormateur(formateur.Id)">Supprimer</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section des matières -->
+    <div class="matieres">
+        <h4 class="text-center mb-3">Matières</h4>
+        <div class="text-center mb-3">
+            <a href="add_matiere" class="btn btn-primary">Ajouter une matière</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr class="text-center">
+                        <th>Nom de la matière</th>
+                        <th>Formateur</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-white">
+                    @foreach (var matiere in matieres)
+                    {
+                        <tr class="text-center">
+                            <td>@matiere.Nom</td>
+                            <td>@matiere.Formateur?.Nom @matiere.Formateur?.Prenom</td>
+                            <td>
+                                <a href="edit_matiere/@matiere.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
+                                <button class="btn btn-danger btn-sm m-2" @onclick="() => DeleteMatiere(matiere.Id)">Supprimer</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
 }
 
 @code {
@@ -89,7 +106,6 @@ else
         isLoading = false;
     }
 
-
     private async Task DeleteFormateur(ulong formateurId)
     {
         bool confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer ce formateur ?");
@@ -100,8 +116,6 @@ else
         }
     }
 
-
-
     private async Task DeleteMatiere(ulong matiereId)
     {
         bool confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer cette matière?");
@@ -110,7 +124,6 @@ else
             await DatabaseService.DeleteMatiereAsync(matiereId);
             matieres = matieres.Where(m => m.Id != matiereId).ToList();
         }
-        
     }
 
     private void GoBack()

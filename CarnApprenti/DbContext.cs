@@ -12,6 +12,9 @@ namespace CarnApprenti
 {
     public class LivretApprentissageContext : DbContext
     {
+        public LivretApprentissageContext()
+        {
+        }
 
         public LivretApprentissageContext(DbContextOptions<LivretApprentissageContext> options)
        : base(options)
@@ -41,53 +44,50 @@ namespace CarnApprenti
         public DbSet<GroupeWithReferent> GroupeWithReferents { get; set; }
         public DbSet<Formateur> Formateurs { get; set; }
         public DbSet<Matiere> Matieres { get; set; }
+        public DbSet<Composition> Compositions { get; set; }
+        public DbSet<Personnel> Personnels { get; set; }
+        public DbSet<GroupeMatiere> GroupeMatieres { get; set; }
+        public DbSet<PersonnelSite> PersonnelSites { get; set; }
 
         // Fluent API Configurations can be added here (if needed)
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configuration de User
+            // User configuration remains unchanged
             modelBuilder.Entity<User>(entity =>
             {
                 entity.ToTable("users");
                 entity.HasKey(e => e.Id);
 
-                // Relation avec Groupe
                 entity.HasOne(u => u.Groupe)
                     .WithMany()
                     .HasForeignKey(u => u.GroupeId)
                     .OnDelete(DeleteBehavior.SetNull);
 
-                // Relation avec Apprenant (self-referencing)
                 entity.HasOne(u => u.Apprenant)
                     .WithMany()
                     .HasForeignKey(u => u.ApprenantId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
 
-            // Configuration de AssignedRole
+            // AssignedRole configuration
             modelBuilder.Entity<AssignedRole>(entity =>
             {
                 entity.ToTable("assigned_roles");
                 entity.HasKey(e => e.Id);
 
-                // Relation avec Role
                 entity.HasOne(ar => ar.Role)
                     .WithMany(r => r.AssignedRoles)
                     .HasForeignKey(ar => ar.RoleId);
 
-                // Relation avec User (Entity)
                 entity.HasOne(ar => ar.Entity)
                     .WithMany(u => u.AssignedRoles)
                     .HasForeignKey(ar => ar.EntityId)
-                .HasPrincipalKey(u => u.Id);
-
-       
-
+                    .HasPrincipalKey(u => u.Id);
             });
 
-            // Configuration de Role
+            // Role configuration
             modelBuilder.Entity<Role>(entity =>
             {
                 entity.ToTable("roles");
@@ -95,7 +95,7 @@ namespace CarnApprenti
             });
         }
 
-    [Table("abilities")]
+        [Table("abilities")]
         public class Ability
         {
             [Key]
@@ -166,7 +166,7 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("livret_id")]
-            public ulong? LivretId { get; set; }
+            public ulong LivretId { get; set; }  // LivretId non nullable
 
             [Column("periode")]
             public string Periode { get; set; }
@@ -184,11 +184,12 @@ namespace CarnApprenti
             public string ObservationsReferent { get; set; }
 
             [Column("created_at")]
-            public DateTime? CreatedAt { get; set; }
+            public DateTime CreatedAt { get; set; }  // DateTime non nullable
 
             [Column("updated_at")]
-            public DateTime? UpdatedAt { get; set; }
+            public DateTime UpdatedAt { get; set; }  // DateTime non nullable
         }
+
 
         [Table("failed_jobs")]
         public class FailedJob
@@ -303,25 +304,28 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("observation_apprenti_global")]
-            public string ObservationApprentiGlobal { get; set; }
+            public string ?ObservationApprentiGlobal { get; set; }
 
             [Column("observation_admin")]
-            public string ObservationAdmin { get; set; }
+            public string ?ObservationAdmin { get; set; }
 
             [Column("lien")]
-            public string Lien { get; set; }
+            public string ?Lien { get; set; }
 
             [Column("user_id")]
-            public ulong UserId { get; set; }
+            public ulong? UserId { get; set; }
 
             [Column("modele_id")]
-            public ulong ModeleId { get; set; }
+            public ulong? ModeleId { get; set; }
 
             [Column("created_at")]
             public DateTime? CreatedAt { get; set; }
 
             [Column("updated_at")]
             public DateTime? UpdatedAt { get; set; }
+
+            public User ?User { get; set; }
+            public Modele ?Modele { get; set; }
         }
 
         [Table("migrations")]
@@ -346,16 +350,20 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("nom")]
-            public string Nom { get; set; }
+            public string ?Nom { get; set; }
 
             [Column("lien")]
-            public string Lien { get; set; }
+            public string ?Lien { get; set; }
 
             [Column("groupe_id")]
             public ulong GroupeId { get; set; }
 
+            public Groupe Groupe { get; set; }
+
             [Column("site_id")]
             public ulong SiteId { get; set; }
+
+            public Site Site { get; set; }
 
             [Column("created_at")]
             public DateTime? CreatedAt { get; set; }
@@ -435,13 +443,16 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("nom")]
-            public string Nom { get; set; }
+            public string ?Nom { get; set; }
 
             [Column("created_at")]
             public DateTime? CreatedAt { get; set; }
 
             [Column("updated_at")]
             public DateTime? UpdatedAt { get; set; }
+
+            public List<PersonnelSite>? PersonnelSites { get; set; } = new List<PersonnelSite>();
+
         }
 
         [Table("assigned_roles")]
@@ -560,10 +571,10 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("nom")]
-            public string Nom { get; set; }
+            public string ?Nom { get; set; }
 
             [Column("prenom")]
-            public string Prenom { get; set; }
+            public string ?Prenom { get; set; }
 
         }
 
@@ -575,12 +586,120 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("nom")]
-            public string Nom { get; set; }
+            public string ?Nom { get; set; }
 
             [Column("formateur_id")]
             public ulong FormateurId { get; set; }
 
             public Formateur ?Formateur { get; set; }
+        }
+
+        [Table("compositions")]
+        public class Composition
+        {
+            [Key]
+            [Column("id")]
+            public ulong Id { get; set; }
+
+            [Column("nom")]
+            public string ?Nom { get; set; }
+
+            [Column("lien")]
+            public string ?Lien { get; set; }
+
+            [Column("modele_id")]
+            public ulong ModeleId { get; set; }
+
+            public Modele Modele { get; set; }
+
+            [Column("created_at")]
+            public DateTime CreatedAt { get; set; }
+
+            [Column("updated_at")]
+            public DateTime UpdatedAt { get; set; }
+        }
+
+        [Table("personnels")]
+        public class Personnel
+        {
+            [Key]
+            [Column("id")]
+            public ulong Id { get; set; }
+
+            [Required(ErrorMessage = "Le nom est requis.")]
+            [StringLength(100, ErrorMessage = "Le nom ne peut pas dépasser 100 caractères.")]
+            [Column("nom")]
+            public string? Nom { get; set; }
+
+            [Required(ErrorMessage = "Le prénom est requis.")]
+            [StringLength(100, ErrorMessage = "Le prénom ne peut pas dépasser 100 caractères.")]
+            [Column("prenom")]
+            public string? Prenom { get; set; }
+
+            [Required(ErrorMessage = "L'email est requis.")]
+            [EmailAddress(ErrorMessage = "L'email n'est pas valide.")]
+            [Column("mail")]
+            public string? Mail { get; set; }
+
+            [Column("description")]
+            public string? Description { get; set; }
+
+            [Required(ErrorMessage = "Le numéro de téléphone est requis.")]
+            [StringLength(10, ErrorMessage = "Le numéro de téléphone ne peut pas dépasser 10 caractères.")]
+            [RegularExpression(@"^\d{10}$", ErrorMessage = "Le numéro de téléphone doit contenir exactement 10 chiffres.")]
+            [Column("telephone")]
+            public string? Telephone { get; set; }
+
+            [Column("created_at")]
+            public DateTime CreatedAt { get; set; }
+
+            [Column("updated_at")]
+            public DateTime UpdatedAt { get; set; }
+
+            public List<PersonnelSite>? PersonnelSites { get; set; } = new List<PersonnelSite>();
+        }
+
+
+        [Table("personnel_site")]
+        public class PersonnelSite
+        {
+            [Key]
+            [Column("id")]
+            public ulong Id { get; set; }
+
+            [Column("personnel_id")]
+            public ulong PersonnelId { get; set; }
+            public Personnel? Personnel { get; set; }
+
+            [Column("site_id")]
+            public ulong SiteId { get; set; }
+            public Site? Site { get; set; }
+        }
+
+
+
+        [Table("groupe_matiere")]
+        public class GroupeMatiere
+        {
+            [Key]
+            [Column("id")]
+            public ulong Id { get; set; }
+
+            [Column("groupe_id")]
+            public ulong GroupeId { get; set; }
+
+            public Groupe Groupe { get; set; }
+
+            [Column("matiere_id")]
+            public ulong MatiereId { get; set; }
+
+            public Matiere Matiere { get; set; }
+
+            [Column("created_at")]
+            public DateTime CreatedAt { get; set; }
+
+            [Column("updated_at")]
+            public DateTime UpdatedAt { get; set; }
         }
     }
 }

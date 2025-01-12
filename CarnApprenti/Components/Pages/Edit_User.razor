@@ -9,86 +9,100 @@
 @using System.Security.Cryptography
 @using static CarnApprenti.LivretApprentissageContext
 
-<button class="retour-link bouton" @onclick="GoBack">Retour</button>
-<h1>Modifier un utilisateur</h1>
+<!-- Retour au lien -->
+<button class="retour-link bouton btn btn-secondary mb-3" @onclick="GoBack">Retour</button>
+
+<h1 class="text-center mb-4">Modifier un utilisateur</h1>
 
 @if (errorMessage != null)
 {
-    <p class="text-danger">@errorMessage</p>
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
+    </div>
 }
 
-<div class="form-container">
-    <EditForm Model="@user" OnValidSubmit="HandleValidSubmit">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-       
-        <div class="form-group">
-            <label for="Nom">Nom</label>
-            <InputText id="Nom" class="form-control" @bind-Value="user.Nom" />
-        </div>
+<div class="container">
+    <div class="form-container">
+        <EditForm Model="@user" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
 
-        <div class="form-group">
-            <label for="Prenom">Prénom</label>
-            <InputText id="Prenom" class="form-control" @bind-Value="user.Prenom" />
-        </div>
+            <!-- Champs Nom -->
+            <div class="form-group mb-3">
+                <label for="Nom" class="form-label">Nom</label>
+                <InputText id="Nom" class="form-control" @bind-Value="user.Nom" />
+            </div>
 
-        <div class="form-group">
-            <label for="Email">Email</label>
-            <InputText id="Email" class="form-control" @bind-Value="user.Email" />
-        </div>
+            <!-- Champs Prénom -->
+            <div class="form-group mb-3">
+                <label for="Prenom" class="form-label">Prénom</label>
+                <InputText id="Prenom" class="form-control" @bind-Value="user.Prenom" />
+            </div>
 
-        <div class="form-group">
-            <label for="Role">Rôle</label>
-            <InputSelect id="Role" class="form-control" @bind-Value="selectedRole">
-                <option value="">Sélectionner un rôle</option>
-                @foreach (var role in roles)
-                {
-                    <option value="@role">@role</option>
-                }
-            </InputSelect>
-        </div>
+            <!-- Champs Email -->
+            <div class="form-group mb-3">
+                <label for="Email" class="form-label">Email</label>
+                <InputText id="Email" class="form-control" @bind-Value="user.Email" />
+            </div>
 
-        @if (selectedRole == "tuteur")
-        {
-            <div class="form-group">
-                <label for="Tuteur">Sélectionner un apprenant</label>
-                <InputSelect id="Tuteur" class="form-control" @bind-Value="selectedApprenantId">
-                    <option value="">Sélectionner un apprenant</option>
-                    @foreach (var apprenant in apprenants)
+            <!-- Sélectionner le rôle -->
+            <div class="form-group mb-3">
+                <label for="Role" class="form-label">Rôle</label>
+                <InputSelect id="Role" class="form-control" @bind-Value="selectedRole">
+                    <option value="">Sélectionner un rôle</option>
+                    @foreach (var role in roles)
                     {
-                        <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>
+                        <option value="@role">@role</option>
                     }
                 </InputSelect>
             </div>
-        }
 
-        @if (selectedRole == "apprenant" || selectedRole == "referent")
-        {
-            <div class="form-group">
-                <label for="Groupe">Groupe</label>
-                <InputSelect id="Groupe" class="form-control" @bind-Value="selectedGroupeId">
-                    <option value="">Sélectionner un groupe</option>
-                    @foreach (var groupe in groupes)
-                    {
-                        <option value="@groupe.Id">@groupe.Nom</option>
-                    }
-                </InputSelect>
+            <!-- Sélectionner un apprenant si rôle 'tuteur' -->
+            @if (selectedRole == "tuteur")
+            {
+                <div class="form-group mb-3">
+                    <label for="Tuteur" class="form-label">Sélectionner un apprenant</label>
+                    <InputSelect id="Tuteur" class="form-control" @bind-Value="selectedApprenantId">
+                        <option value="">Sélectionner un apprenant</option>
+                        @foreach (var apprenant in apprenants)
+                        {
+                            <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>
+                        }
+                    </InputSelect>
+                </div>
+            }
+
+            <!-- Sélectionner un groupe si rôle 'apprenant' ou 'referent' -->
+            @if (selectedRole == "apprenant" || selectedRole == "referent")
+            {
+                <div class="form-group mb-3">
+                    <label for="Groupe" class="form-label">Groupe</label>
+                    <InputSelect id="Groupe" class="form-control" @bind-Value="selectedGroupeId">
+                        <option value="">Sélectionner un groupe</option>
+                        @foreach (var groupe in groupes)
+                        {
+                            <option value="@groupe.Id">@groupe.Nom</option>
+                        }
+                    </InputSelect>
+                </div>
+            }
+
+            <!-- Nouveau mot de passe -->
+            <div class="form-group mb-3">
+                <label for="NewPassword" class="form-label">Nouveau mot de passe</label>
+                <InputText id="NewPassword" class="form-control" type="password" @bind-Value="newPassword" />
             </div>
-        }
 
-        <!-- Nouveau mot de passe et confirmation -->
-        <div class="form-group">
-            <label for="NewPassword">Nouveau mot de passe</label>
-            <InputText id="NewPassword" class="form-control" type="password" @bind-Value="newPassword" />
-        </div>
+            <!-- Confirmation mot de passe -->
+            <div class="form-group mb-3">
+                <label for="ConfirmPassword" class="form-label">Confirmer le mot de passe</label>
+                <InputText id="ConfirmPassword" class="form-control" type="password" @bind-Value="confirmPassword" />
+            </div>
 
-        <div class="form-group">
-            <label for="ConfirmPassword">Confirmer le mot de passe</label>
-            <InputText id="ConfirmPassword" class="form-control" type="password" @bind-Value="confirmPassword" />
-        </div>
-
-        <button type="submit" class="btn btn-primary">Modifier</button>
-    </EditForm>
+            <!-- Bouton de soumission -->
+            <button type="submit" class="btn btn-primary w-100">Modifier</button>
+        </EditForm>
+    </div>
 </div>
 
 @code {
@@ -121,7 +135,7 @@
         }
         catch (Exception ex)
         {
-            errorMessage = $"Une erreur s'est produite lors du chargement des données : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException}";
+            errorMessage = $"Une erreur s'est produite lors du chargement des données : {ex.Message}";
         }
     }
 
@@ -129,7 +143,6 @@
     {
         try
         {
-            // Mettre à jour les champs spécifiques au rôle
             if (selectedRole == "tuteur")
             {
                 user.ApprenantId = selectedApprenantId;
@@ -140,7 +153,6 @@
                 user.GroupeId = selectedGroupeId;
             }
 
-            // Si un nouveau mot de passe est saisi et qu'il est confirmé, on le met à jour
             if (!string.IsNullOrEmpty(newPassword))
             {
                 if (newPassword != confirmPassword)
@@ -152,10 +164,8 @@
                 user.Password = EncryptLaravelPassword(newPassword, "base64:COwLBPHHHx0xJdy/CAIMVbO4VbgkffA/0QntdefwruQ=");
             }
 
-            // Mettre à jour l'utilisateur dans la base de données
             await DatabaseService.UpdateUserAsync(user);
 
-            // Assigner le rôle à l'utilisateur
             if (!string.IsNullOrEmpty(selectedRole))
             {
                 await DatabaseService.AssignRoleToUserAsync(user.Id, selectedRole);
@@ -165,7 +175,7 @@
         }
         catch (Exception ex)
         {
-            errorMessage = $"Une erreur s'est produite lors de la modification de l'utilisateur : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException?.Message}\n{ex.InnerException?.StackTrace}";
+            errorMessage = $"Une erreur s'est produite lors de la modification de l'utilisateur : {ex.Message}";
         }
     }
 
@@ -206,7 +216,7 @@
         }
         catch (Exception ex)
         {
-            throw new Exception($"Erreur de chiffrement : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException}");
+            throw new Exception($"Erreur de chiffrement : {ex.Message}");
         }
     }
 }

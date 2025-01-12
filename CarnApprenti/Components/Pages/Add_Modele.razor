@@ -1,0 +1,223 @@
+﻿@page "/add_modele"
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.Logging
+@inject DatabaseService DatabaseService
+@inject NavigationManager Navigation
+@using static CarnApprenti.LivretApprentissageContext
+@inject ILogger<Add_Modele> Logger
+@inject IJSRuntime js
+
+
+<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
+
+<h1 class="text-center m-4">Création de Modèle</h1>
+
+<EditForm Model="modele" OnValidSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <!-- Nom du modèle -->
+    <div class="form-group">
+        <label for="nom">Nom du modèle :</label>
+        <InputText id="nom" class="form-control" @bind-Value="modele.Nom" />
+    </div>
+
+    <!-- Sélectionner un groupe -->
+    <div class="form-group">
+        <label for="groupeId">Groupe :</label>
+        <InputSelect id="groupeId" class="form-control" @bind-Value="modele.GroupeId">
+            @foreach (var groupe in groupes)
+            {
+                <option value="@groupe.Id">@groupe.Nom</option>
+            }
+        </InputSelect>
+    </div>
+
+    <!-- Sélectionner un site -->
+    <div class="form-group">
+        <label for="siteId">Site :</label>
+        <InputSelect id="siteId" class="form-control" @bind-Value="modele.SiteId">
+            @foreach (var site in sites)
+            {
+                <option value="@site.Id">@site.Nom</option>
+            }
+        </InputSelect>
+    </div>
+
+    <!-- Compositions -->
+    <div class="form-group" id="compositionContainer">
+        <h3>Compositions (@compositionModels.Count)</h3>
+        @for (int i = 0; i < compositionModels.Count; i++)
+        {
+            var currentIndex = i;
+            <div class="composition-block border p-3 mb-3">
+                <p>Composition @(currentIndex + 1)</p>
+
+                <div class="mb-3">
+                    <label for="@($"type_{currentIndex}")">Type de composition :</label>
+                    <InputText id="@($"type_{currentIndex}")" class="form-control"
+                               @bind-Value="compositionModels[currentIndex].Type" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="@($"pdf_{currentIndex}")">PDF de la composition :</label>
+                    <InputFile id="@($"pdf_{currentIndex}")" class="form-control"
+                               OnChange="@(e => HandleFileSelected(e, currentIndex))" />
+                </div>
+            </div>
+        }
+
+        <button type="button" class="btn btn-info mt-3" @onclick="AddComposition">
+            Ajouter une composition (+)
+        </button>
+    </div>
+
+    <button type="submit" class="btn btn-success">Enregistrer</button>
+</EditForm>
+
+@code {
+    private Modele modele = new Modele();
+    private List<Groupe> groupes = new List<Groupe>();
+    private List<Site> sites = new List<Site>();
+    private List<CompositionModel> compositionModels = new List<CompositionModel>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Logger.LogInformation("Début OnInitializedAsync");
+
+            groupes = await DatabaseService.GetGroupesAsync();
+            Logger.LogInformation($"Groupes chargés : {groupes.Count}");
+
+            sites = await DatabaseService.GetSitesAsync();
+            Logger.LogInformation($"Sites chargés : {sites.Count}");
+
+            compositionModels.Clear();
+            compositionModels.Add(new CompositionModel { Type = string.Empty });
+            Logger.LogInformation("Première composition ajoutée");
+
+            Logger.LogInformation("Fin OnInitializedAsync");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Erreur dans OnInitializedAsync : {ex.Message}");
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            Logger.LogInformation("Début de la soumission du formulaire");
+
+            // Enregistrer le modèle dans la base de données
+            var modeleId = await DatabaseService.AddModeleAsync(modele);
+            Logger.LogInformation($"Modèle créé avec l'ID : {modeleId}");
+
+            // Traiter les compositions
+            foreach (var composition in compositionModels)
+            {
+                if (composition.File != null)
+                {
+                    Logger.LogInformation($"Traitement du fichier : {composition.File.Name}");
+                    var fileUrl = await UploadFile(composition.File);
+
+                    await DatabaseService.AddCompositionAsync(new Composition
+                        {
+                            Nom = composition.Type,
+                            Lien = fileUrl,
+                            ModeleId = (ulong)modeleId,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        });
+                    Logger.LogInformation("Composition ajoutée avec succès");
+                }
+            }
+
+            Navigation.NavigateTo("/modeles");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Erreur lors de la soumission : {ex.Message}");
+            // Vous pourriez vouloir afficher un message d'erreur à l'utilisateur ici
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/modeles"); // Retourner à la page des modèles
+    }
+
+    private void AddComposition()
+    {
+        try
+        {
+            Logger.LogInformation("Début AddComposition");
+            Logger.LogInformation($"Nombre actuel de compositions : {compositionModels.Count}");
+
+            var index = compositionModels.Count;
+            compositionModels.Add(new CompositionModel { Type = string.Empty });
+
+            Logger.LogInformation($"Nouvelle composition ajoutée à l'index {index}");
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Erreur dans AddComposition : {ex.Message}");
+            Logger.LogError($"Stack trace : {ex.StackTrace}");
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e, int index)
+    {
+        var file = e.File;
+        compositionModels[index].File = file;
+        Console.WriteLine($"File selected for composition {index}: {file.Name}");
+    }
+
+    private async Task<string> UploadFile(IBrowserFile file)
+    {
+        try
+        {
+            // Remonter au répertoire du projet
+            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            var projectRoot = Path.Combine(baseDirectory, "..", "..", "..", "..", "..", "wwwroot", "pdf");
+
+            // Résoudre le chemin absolu
+            var wwwrootPath = Path.GetFullPath(projectRoot);
+
+            // Créer le dossier 'pdf' s'il n'existe pas
+            if (!Directory.Exists(wwwrootPath))
+            {
+                Directory.CreateDirectory(wwwrootPath);
+            }
+
+            // Nom du fichier avec horodatage
+            var fileName = $"{DateTime.Now:yyyyMMddHHmmss}_{file.Name}";
+            var filePath = Path.Combine(wwwrootPath, fileName);
+
+            using (var stream = file.OpenReadStream())
+            {
+                using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+                {
+                    await stream.CopyToAsync(fileStream);
+                }
+            }
+
+            // Retourne le chemin relatif depuis wwwroot (pour utilisation dans les balises HTML, par exemple)
+            return Path.Combine("pdf", fileName).Replace("\\", "/");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur : {ex.Message}");
+            throw;
+        }
+    }
+
+    private class CompositionModel
+    {
+        public string Type { get; set; } = string.Empty;
+        public IBrowserFile? File { get; set; }
+    }
+}

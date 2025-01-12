@@ -1,0 +1,188 @@
+﻿@page "/compte_rendu/{livretId}/{periode?}"
+@using Microsoft.AspNetCore.Components.Forms
+@using static CarnApprenti.LivretApprentissageContext
+@inject DatabaseService DatabaseService
+@inject NavigationManager Navigation
+@inject IJSRuntime js
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <h2>Chargement des données...</h2>
+    </div>
+}
+else
+{
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+
+    <div class="row">
+        <div class="col-md-3">
+            <nav class="bg-light p-3 rounded">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <!-- Lien de la période courante -->
+                        <a class="nav-link" href="@GetPeriodLink(GetPeriodText())">
+                            @GetPeriodText()
+                        </a>
+                    </li>
+                    @foreach (var p in periodes)
+                    {
+                        @if (p != Periode)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" href="@GetPeriodLink(p)">
+                                    @p
+                                </a>
+                            </li>
+                        }
+                    }
+                </ul>
+            </nav>
+        </div>
+
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header" style="background-color:black">
+                    <h3>Compte-rendu pour la période : @Periode</h3>
+                </div>
+                <div class="card-body" style="color: black;">
+                    <EditForm Model="compteRendu" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="form-group mb-4">
+                            <label for="activitesPros" class="form-label">Activités professionnelles</label>
+                            <textarea id="activitesPros" class="form-control" rows="5" @bind="compteRendu.ActivitesPro"></textarea>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label for="observationsApprenti" class="form-label">Observations de l'apprenti</label>
+                            <textarea id="observationsApprenti" class="form-control" rows="5" @bind="compteRendu.ObservationsApprenti"></textarea>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label for="observationsTuteur" class="form-label">Observations du tuteur</label>
+                            <textarea id="observationsTuteur" class="form-control" rows="5" @bind="compteRendu.ObservationsTuteur"></textarea>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label for="observationsReferent" class="form-label">Observations du référent</label>
+                            <textarea id="observationsReferent" class="form-control" rows="5" @bind="compteRendu.ObservationsReferent"></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-center mt-4">
+                            <button type="submit" class="btn btn-primary">@buttonText</button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string LivretId { get; set; }
+    [Parameter] public string Periode { get; set; }
+
+    private bool isLoading = true;
+    private CompteRendu compteRendu = new CompteRendu();
+    private List<string> periodes = new List<string>();
+    private string userRole;
+    private string buttonText = "Enregistrer";
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            // Chargement des périodes pour afficher la navigation
+            periodes = await DatabaseService.GetPeriodesAsync(ulong.Parse(LivretId));
+
+            // Récupérer le rôle de l'utilisateur actuel
+            userRole = await SessionStorage.GetItemAsync<string>("userRole");
+
+            // Si la période n'est pas dans l'URL, prendre la période actuelle
+            if (string.IsNullOrEmpty(Periode))
+            {
+                Periode = GetPeriodText();
+            }
+
+            // Récupérer le compte rendu pour la période si disponible
+            compteRendu = await DatabaseService.GetCompteRenduAsync(ulong.Parse(LivretId), Periode);
+
+            if (compteRendu != null)
+            {
+                buttonText = "Mettre à jour";
+            }
+            else
+            {
+                compteRendu = new CompteRendu();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur lors du chargement des données : {ex.Message}");
+        }
+
+        isLoading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            // Vérification et affectation des valeurs manquantes
+            if (string.IsNullOrEmpty(compteRendu.Periode))
+            {
+                compteRendu.Periode = Periode;
+            }
+
+            if (compteRendu.LivretId == 0)
+            {
+                compteRendu.LivretId = ulong.Parse(LivretId);
+            }
+
+            if (compteRendu.Id == 0)
+            {
+                compteRendu.CreatedAt = DateTime.UtcNow;
+            }
+            compteRendu.UpdatedAt = DateTime.UtcNow;
+
+            if (compteRendu.Id == 0)
+            {
+                await DatabaseService.AddCompteRenduAsync(compteRendu);
+            }
+            else
+            {
+                await DatabaseService.UpdateCompteRenduAsync(compteRendu);
+            }
+
+            // Redirection après soumission
+            Navigation.NavigateTo("/livrets");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur lors de la soumission du compte rendu : {ex.Message}");
+        }
+    }
+
+    private string GetPeriodLink(string period)
+    {
+        return $"/compte_rendu/{LivretId}/{period}";
+    }
+
+    private string GetPeriodText()
+    {
+        var startOfMonth = DateTime.Now;
+        var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
+
+        return $"{startOfMonth:MMMM yyyy} - {endOfMonth:MMMM yyyy}";
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/livrets");
+    }
+}

@@ -9,80 +9,94 @@
 @using System.Security.Cryptography
 @using static CarnApprenti.LivretApprentissageContext
 
-<button class="retour-link bouton" @onclick="GoBack">Retour</button>
-<h1>Ajouter un utilisateur</h1>
+<!-- Retour au lien -->
+<button class="retour-link bouton btn btn-secondary mb-3" @onclick="GoBack">Retour</button>
+
+<h1 class="text-center mb-4">Ajouter un utilisateur</h1>
 
 @if (errorMessage != null)
 {
-    <p class="text-danger">@errorMessage</p>
+    <div class="alert alert-danger" role="alert">
+        @errorMessage
+    </div>
 }
 
-<div class="form-container">
-    <EditForm Model="@newUser" OnValidSubmit="HandleValidSubmit">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
+<div class="container">
+    <div class="form-container">
+        <EditForm Model="@newUser" OnValidSubmit="HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
 
-        <div class="form-group">
-            <label for="Nom">Nom</label>
-            <InputText id="Nom" class="form-control" @bind-Value="newUser.Nom" />
-        </div>
+            <!-- Champs Nom -->
+            <div class="form-group mb-3">
+                <label for="Nom" class="form-label">Nom</label>
+                <InputText id="Nom" class="form-control" @bind-Value="newUser.Nom" />
+            </div>
 
-        <div class="form-group">
-            <label for="Prenom">Prénom</label>
-            <InputText id="Prenom" class="form-control" @bind-Value="newUser.Prenom" />
-        </div>
+            <!-- Champs Prénom -->
+            <div class="form-group mb-3">
+                <label for="Prenom" class="form-label">Prénom</label>
+                <InputText id="Prenom" class="form-control" @bind-Value="newUser.Prenom" />
+            </div>
 
-        <div class="form-group">
-            <label for="Email">Email</label>
-            <InputText id="Email" class="form-control" @bind-Value="newUser.Email" />
-        </div>
+            <!-- Champs Email -->
+            <div class="form-group mb-3">
+                <label for="Email" class="form-label">Email</label>
+                <InputText id="Email" class="form-control" @bind-Value="newUser.Email" />
+            </div>
 
-        <div class="form-group">
-            <label for="Role">Rôle</label>
-            <InputSelect id="Role" class="form-control" @bind-Value="selectedRole">
-                <option value="">Sélectionner un rôle</option>
-                @foreach (var role in roles)
-                {
-                    <option value="@role">@role</option>
-                }
-            </InputSelect>
-        </div>
-
-        @if (selectedRole == "tuteur")
-        {
-            <div class="form-group">
-                <label for="Tuteur">Sélectionner un apprenant</label>
-                <InputSelect id="Tuteur" class="form-control" @bind-Value="selectedApprenantId">
-                    <option value="">Sélectionner un apprenant</option>
-                    @foreach (var apprenant in apprenants)
+            <!-- Sélectionner le rôle -->
+            <div class="form-group mb-3">
+                <label for="Role" class="form-label">Rôle</label>
+                <InputSelect id="Role" class="form-control" @bind-Value="selectedRole">
+                    <option value="">Sélectionner un rôle</option>
+                    @foreach (var role in roles)
                     {
-                        <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>
+                        <option value="@role">@role</option>
                     }
                 </InputSelect>
             </div>
-        }
 
-        @if (selectedRole == "apprenant" || selectedRole == "referent")
-        {
-            <div class="form-group">
-                <label for="Groupe">Groupe</label>
-                <InputSelect id="Groupe" class="form-control" @bind-Value="selectedGroupeId">
-                    <option value="">Sélectionner un groupe</option>
-                    @foreach (var groupe in groupes)
-                    {
-                        <option value="@groupe.Id">@groupe.Nom</option>
-                    }
-                </InputSelect>
+            <!-- Sélectionner un apprenant si rôle 'tuteur' -->
+            @if (selectedRole == "tuteur")
+            {
+                <div class="form-group mb-3">
+                    <label for="Tuteur" class="form-label">Sélectionner un apprenant</label>
+                    <InputSelect id="Tuteur" class="form-control" @bind-Value="selectedApprenantId">
+                        <option value="">Sélectionner un apprenant</option>
+                        @foreach (var apprenant in apprenants)
+                        {
+                            <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>
+                        }
+                    </InputSelect>
+                </div>
+            }
+
+            <!-- Sélectionner un groupe si rôle 'apprenant' ou 'referent' -->
+            @if (selectedRole == "apprenant" || selectedRole == "referent")
+            {
+                <div class="form-group mb-3">
+                    <label for="Groupe" class="form-label">Groupe</label>
+                    <InputSelect id="Groupe" class="form-control" @bind-Value="selectedGroupeId">
+                        <option value="">Sélectionner un groupe</option>
+                        @foreach (var groupe in groupes)
+                        {
+                            <option value="@groupe.Id">@groupe.Nom</option>
+                        }
+                    </InputSelect>
+                </div>
+            }
+
+            <!-- Champ Mot de passe -->
+            <div class="form-group mb-3">
+                <label for="Password" class="form-label">Mot de passe</label>
+                <InputText id="Password" class="form-control" type="password" @bind-Value="newUser.Password" />
             </div>
-        }
 
-        <div class="form-group">
-            <label for="Password">Mot de passe</label>
-            <InputText id="Password" class="form-control" type="password" @bind-Value="newUser.Password" />
-        </div>
-
-        <button type="submit" class="btn btn-primary">Ajouter</button>
-    </EditForm>
+            <!-- Bouton de soumission -->
+            <button type="submit" class="btn btn-primary w-100">Ajouter</button>
+        </EditForm>
+    </div>
 </div>
 
 @code {
@@ -146,7 +160,6 @@
             errorMessage = $"Une erreur s'est produite lors de l'ajout de l'utilisateur : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException?.Message}\n{ex.InnerException?.StackTrace}";
         }
     }
-
 
     private void GoBack()
     {
