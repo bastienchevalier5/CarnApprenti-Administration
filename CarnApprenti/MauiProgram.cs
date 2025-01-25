@@ -50,6 +50,7 @@ namespace CarnApprenti
 
             builder.Services.AddScoped<DatabaseService>();
 
+
             builder.Services.AddScoped<PdfService>();
 
             builder.Services.AddScoped<ModeleService>();
@@ -57,30 +58,33 @@ namespace CarnApprenti
 
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-//#if WINDOWS
-//            builder.ConfigureLifecycleEvents(events =>
-//            {
-//                events.AddWindows(windows => windows.OnWindowCreated(window =>
-//                {
-//                    window.ExtendsContentIntoTitleBar = true;
-//                    var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
-//                    var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
-//                    var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
-//                    appWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen);
-//                }));
-//            });
-//#endif
+            //#if WINDOWS
+            //            builder.ConfigureLifecycleEvents(events =>
+            //            {
+            //                events.AddWindows(windows => windows.OnWindowCreated(window =>
+            //                {
+            //                    window.ExtendsContentIntoTitleBar = true;
+            //                    var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            //                    var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+            //                    var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+            //                    appWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen);
+            //                }));
+            //            });
+            //#endif
 
-//#if ANDROID
-//            builder.ConfigureLifecycleEvents(events =>
-//            {
-//                events.AddAndroid(android => android.OnCreate((activity, savedInstanceState) =>
-//                {
-//                    activity.Window.AddFlags(Android.Views.WindowManagerFlags.Fullscreen);
-//                }));
-//            });
-//#endif
-
+#if ANDROID
+            builder.ConfigureLifecycleEvents(events =>
+            {
+                events.AddAndroid(android => android.OnCreate((activity, savedInstanceState) =>
+                {
+                    activity.Window?.AddFlags(Android.Views.WindowManagerFlags.Fullscreen);
+                }));
+            });
+#endif
+            builder.Services.AddMauiBlazorWebView();
+#if DEBUG
+            builder.Services.AddBlazorWebViewDeveloperTools();
+#endif
             return builder.Build();
         }
     }

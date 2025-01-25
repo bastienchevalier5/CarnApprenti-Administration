@@ -4,86 +4,91 @@
 @inject DatabaseService DatabaseService
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
 @inject IJSRuntime js
+@using CarnApprenti.Components.Layout
 
-<h1 class="text-center mb-4">Modifier un personnel</h1>
-
-@if (errorMessage != null)
-{
-    <div class="alert alert-danger" role="alert">
-        @errorMessage
-    </div>
-}
-
-<div class="container">
-    <div class="form-container">
-        <EditForm Model="@personnel" OnValidSubmit="HandleValidSubmit">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-
-            <!-- Champs Nom -->
-            <div class="form-group mb-3">
-                <label for="Nom" class="form-label">Nom</label>
-                <InputText id="Nom" class="form-control" @bind-Value="personnel.Nom" />
-            </div>
-
-            <!-- Champs Prénom -->
-            <div class="form-group mb-3">
-                <label for="Prenom" class="form-label">Prénom</label>
-                <InputText id="Prenom" class="form-control" @bind-Value="personnel.Prenom" />
-            </div>
-
-            <!-- Champs Téléphone -->
-            <div class="form-group mb-3">
-                <label for="Telephone" class="form-label">Téléphone</label>
-                <InputText id="Telephone" class="form-control" @bind-Value="personnel.Telephone" />
-                <ValidationMessage For="@(() => personnel.Telephone)" />
-            </div>
-
-            <!-- Champs Mail -->
-            <div class="form-group mb-3">
-                <label for="Mail" class="form-label">Email</label>
-                <InputText id="Mail" class="form-control" @bind-Value="personnel.Mail" />
-            </div>
-
-            <!-- Champs Description -->
-            <div class="form-group mb-3">
-                <label for="Description" class="form-label">Description</label>
-                <InputTextArea id="Description" class="form-control" @bind-Value="personnel.Description" />
-            </div>
-
-            <!-- Sélection des Sites -->
-            <div class="form-group mb-3">
-                <label for="Sites" class="form-label">Sites</label>
-                <div id="Sites">
-                    @if (availableSites != null)
-                    {
-                        @foreach (var site in availableSites)
-                        {
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox"
-                                       id="site_@site.Id"
-                                       value="@site.Id"
-                                       checked="@selectedSites.Contains(site.Id)"
-                                       @onchange="(e) => HandleCheckboxChange(e, site.Id)" />
-
-                                <label class="form-check-label" for="site_@site.Id">@site.Nom</label>
-                            </div>
-                        }
-                    }
-                </div>
-            </div>
-
-            <!-- Bouton de soumission -->
-            <button type="submit" class="btn btn-primary w-100">Modifier</button>
-        </EditForm>
-    </div>
+<div class="sidebar">
+    <NavMenu />
 </div>
 
-<!-- Retour au lien -->
-<button class="retour-link bouton btn btn-secondary mb-3" @onclick="GoBack">Retour</button>
+<div style="margin-left:250px">
 
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+
+    <h1 class="text-center mb-4">Modifier un personnel</h1>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
+
+    <div class="container">
+        <div class="form-container">
+            <EditForm Model="@personnel" class="text-center" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <!-- Champs Nom -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Nom" class="form-label">Nom</label>
+                    <InputText id="Nom" class="form-control" @bind-Value="personnel.Nom" />
+                </div>
+
+                <!-- Champs Prénom -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Prenom" class="form-label">Prénom</label>
+                    <InputText id="Prenom" class="form-control" @bind-Value="personnel.Prenom" />
+                </div>
+
+                <!-- Champs Téléphone -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Telephone" class="form-label">Téléphone</label>
+                    <InputText id="Telephone" class="form-control" @bind-Value="personnel.Telephone" maxlength="10" minlength="10" />
+                </div>
+
+                <!-- Champs Mail -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Mail" class="form-label">Email</label>
+                    <InputText id="Mail" class="form-control" @bind-Value="personnel.Mail" />
+                </div>
+
+                <!-- Champs Description -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Description" class="form-label">Description</label>
+                    <InputTextArea id="Description" class="form-control" @bind-Value="personnel.Description" />
+                </div>
+
+                <!-- Sélection des Sites -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Sites" class="form-label">Sites</label>
+                    <div id="Sites">
+                        @if (availableSites != null)
+                        {
+                            @foreach (var site in availableSites)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox"
+                                           id="site_@site.Id"
+                                           value="@site.Id"
+                                           checked="@selectedSites.Contains(site.Id)"
+                                           @onchange="(e) => HandleCheckboxChange(e, site.Id)" />
+
+                                    <label class="form-check-label" for="site_@site.Id">@site.Nom</label>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <!-- Bouton de soumission -->
+                <button type="submit" class="btn btn-primary mb-3">Modifier</button>
+            </EditForm>
+        </div>
+    </div>
+</div>
 @code {
-    [Parameter] public string personnelId { get; set; }
+    [Parameter] public string ?personnelId { get; set; }
     private Personnel personnel = new Personnel { PersonnelSites = new List<PersonnelSite>() };
     private List<Site> availableSites = new List<Site>();
     private List<ulong> selectedSites = new List<ulong>();
@@ -100,7 +105,11 @@
             availableSites = await DatabaseService.GetSitesAsync() ?? new List<Site>();
 
             // Populate selectedSites with the site IDs already associated with the personnel
-            selectedSites = personnel.PersonnelSites?.Select(ps => ps.SiteId).ToList() ?? new List<ulong>();
+            if (personnel != null)
+            {
+                selectedSites = personnel.PersonnelSites?.Select(ps => ps.SiteId).ToList() ?? new List<ulong>();
+
+            }
         }
         catch (Exception ex)
         {
@@ -127,6 +136,36 @@
     {
         try
         {
+            if (string.IsNullOrEmpty(personnel.Nom))
+            {
+                errorMessage = "Veuillez entrer un nom.";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(personnel.Prenom))
+            {
+                errorMessage = "Veuillez entrer un prénom.";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(personnel.Telephone))
+            {
+                errorMessage = "Veuillez entrer un numéro de téléphone.";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(personnel.Mail))
+            {
+                errorMessage = "Veuillez entrer un email.";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(personnel.Description))
+            {
+                errorMessage = "Veuillez entrer une description.";
+                return;
+            }
+
             if (!selectedSites.Any())
             {
                 errorMessage = "Veuillez sélectionner au moins un site";

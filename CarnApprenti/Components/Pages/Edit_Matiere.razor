@@ -3,48 +3,63 @@
 @using static CarnApprenti.LivretApprentissageContext
 @inject DatabaseService DatabaseService
 @inject NavigationManager Navigation
+@using CarnApprenti.Components.Layout
 
-<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
+<div class="sidebar">
+    <NavMenu />
+</div>
 
-<h3 class="text-center mb-4">Modifier une Matière</h3>
+<div style="margin-left:250px">
 
-@if (matiereToEdit == null)
-{
-    <p class="text-center">Matière non trouvée ou en cours de chargement...</p>
-}
-else
-{
-    <EditForm Model="matiereToEdit" OnValidSubmit="HandleEditMatiere">
-        <DataAnnotationsValidator />
-        <ValidationSummary class="text-danger mb-3" />
 
-        <div class="mb-4">
-            <label for="matiereNom" class="form-label">Nom de la matière</label>
-            <InputText id="matiereNom" class="form-control" @bind-Value="matiereToEdit.Nom" placeholder="Entrez le nom de la matière" />
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+
+    <h3 class="text-center mb-4">Modifier une Matière</h3>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
         </div>
+    }
 
-        <div class="mb-4">
-            <label for="formateurId" class="form-label">Formateur</label>
-            <InputSelect id="formateurId" class="form-control" @bind-Value="matiereToEdit.FormateurId">
-                <option value="">Sélectionnez un formateur</option>
-                @foreach (var formateur in formateurs)
-                {
-                    <option value="@formateur.Id">@formateur.Nom @formateur.Prenom</option>
-                }
-            </InputSelect>
-        </div>
+    @if (matiereToEdit == null)
+    {
+        <p class="text-center">Matière non trouvée ou en cours de chargement...</p>
+    }
+    else
+    {
+        <EditForm Model="matiereToEdit" class="text-center" OnValidSubmit="HandleEditMatiere">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger mb-3" />
 
-        <div class="d-flex justify-content-center mb-4">
-            <button type="submit" class="btn btn-primary btn-lg">Modifier la Matière</button>
-        </div>
-    </EditForm>
-}
+            <div class="form-group mb-3 w-50 mx-auto">
+                <label for="matiereNom" class="form-label">Nom de la matière</label>
+                <InputText id="matiereNom" class="form-control" @bind-Value="matiereToEdit.Nom" />
+            </div>
 
+            <div class="form-group mb-3 w-50 mx-auto">
+                <label for="formateurId" class="form-label">Formateur</label>
+                <InputSelect id="formateurId" class="form-control" @bind-Value="matiereToEdit.FormateurId">
+
+                    @foreach (var formateur in formateurs)
+                    {
+                        <option value="@formateur.Id">@formateur.Nom @formateur.Prenom</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Modifier</button>
+
+        </EditForm>
+    }
+</div>
 @code {
-    [Parameter] public string matiereId { get; set; }
+    [Parameter] public string? matiereId { get; set; }
 
-    private Matiere matiereToEdit;
-    private List<Formateur> formateurs;
+    private Matiere? matiereToEdit;
+    private List<Formateur>? formateurs;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -64,6 +79,11 @@ else
     {
         try
         {
+            if (string.IsNullOrEmpty(matiereToEdit?.Nom))
+            {
+                errorMessage = "Veuillez entrer un nom.";
+                return;
+            }
             await DatabaseService.UpdateMatiereAsync(matiereToEdit);
             Navigation.NavigateTo("/formateurs/matieres");
         }

@@ -50,13 +50,16 @@ namespace CarnApprenti
             }
         }
 
-        public async Task<byte[]> GeneratePdfAsync(ulong idModele, ulong idLivret)
+        public async Task<byte[]> GeneratePdfAsync(ulong? idModele, ulong idLivret)
         {
             try
             {
-                var modele = await _context.Modeles.FindAsync(idModele);
-                var groupe = await _context.Groupes.FindAsync(modele.GroupeId);
+                Modele? modele = await _context.Modeles.FindAsync(idModele);
+                if (modele != null)
+                {
+                    var groupe = await _context.Groupes.FindAsync(modele.GroupeId);
 
+                }
                 using var memoryStream = new MemoryStream();
                 var writerProperties = new WriterProperties().SetPdfVersion(PdfVersion.PDF_2_0);
                 using var writer = new PdfWriter(memoryStream, writerProperties);

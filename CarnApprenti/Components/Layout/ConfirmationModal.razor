@@ -1,0 +1,37 @@
+﻿@* ConfirmationModal.razor *@
+<div class="modal @(isVisible ? "show d-block" : "d-none")" tabindex="-1" style="color:black">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@Title</h5>
+            </div>
+            <div class="modal-body">
+                <p>@Message</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" @onclick="() => OnClose.InvokeAsync(true)">Oui</button>
+                <button type="button" class="btn btn-secondary" @onclick="() => OnClose.InvokeAsync(false)">Non</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool isVisible;
+
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public EventCallback<bool> OnClose { get; set; }
+
+    public void Show()
+    {
+        isVisible = true;
+        StateHasChanged();
+    }
+
+    public void Hide()
+    {
+        isVisible = false;
+        StateHasChanged();
+    }
+}

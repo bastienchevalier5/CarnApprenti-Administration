@@ -4,95 +4,117 @@
 @inject DatabaseService DatabaseService
 @inject NavigationManager Navigation
 @inject IJSRuntime js
+@using CarnApprenti.Components.Layout
 
-@if (isLoading)
-{
-    <div class="text-center my-5">
-        <p>Chargement des données...</p>
-    </div>
-}
-else
-{
-     <button class="btn btn-secondary" @onclick="GoBack">Retour</button>
-    
+<div class="sidebar">
+    <NavMenu />
+</div>
 
-    <!-- Titre principal centré -->
-    <h3 class="text-center mb-4">Gestion des formateurs et des matières</h3>
+<div style="margin-left:250px">
 
-    <!-- Bouton Importer centré -->
-    <div class="text-center mb-4">
-        <a href="import_formateurs_matieres" class="btn btn-primary">Importer des Formateurs et Matières</a>
-    </div>
-
-    <!-- Section des formateurs -->
-    <div class="formateurs mb-5">
-        <h4 class="text-center mb-3">Formateurs</h4>
-        <div class="text-center mb-3">
-            <a href="add_formateur" class="btn btn-primary">Ajouter un formateur</a>
+    @if (isLoading)
+    {
+        <div class="text-center my-5">
+            <p>Chargement des données...</p>
         </div>
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead class="table-dark">
-                    <tr class="text-center">
-                        <th>Nom</th>
-                        <th>Prénom</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="text-white">
-                    @foreach (var formateur in formateurs)
-                    {
+    }
+    else
+    {
+        <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+
+        <!-- Titre principal centré -->
+        <h3 class="text-center mb-4">Gestion des formateurs et des matières</h3>
+
+        <!-- Bouton Importer centré -->
+        <div class="text-center mb-4">
+            <a href="import_formateurs_matieres" class="btn btn-primary">Importer des Formateurs et Matières</a>
+        </div>
+
+        <!-- Section des formateurs -->
+        <div class="formateurs mb-5">
+            <h4 class="text-center mb-3">Formateurs</h4>
+            <div class="text-center mb-3">
+                <a href="add_formateur" class="btn btn-primary">Ajouter un formateur</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
                         <tr class="text-center">
-                            <td>@formateur.Nom</td>
-                            <td>@formateur.Prenom</td>
-                            <td>
-                                <a href="edit_formateur/@formateur.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
-                                <button class="btn btn-danger btn-sm m-2" @onclick="() => DeleteFormateur(formateur.Id)">Supprimer</button>
-                            </td>
+                            <th>Nom</th>
+                            <th>Prénom</th>
+                            <th>Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="text-white">
+                        @foreach (var formateur in formateurs)
+                        {
+                            <tr class="text-center">
+                                <td>@formateur.Nom</td>
+                                <td>@formateur.Prenom</td>
+                                <td>
+                                    <a href="edit_formateur/@formateur.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
+                                    <button class="btn btn-danger btn-sm m-2" @onclick="() => ConfirmDeleteFormateur(formateur.Id)">Supprimer</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
 
-    <!-- Section des matières -->
-    <div class="matieres">
-        <h4 class="text-center mb-3">Matières</h4>
-        <div class="text-center mb-3">
-            <a href="add_matiere" class="btn btn-primary">Ajouter une matière</a>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead class="table-dark">
-                    <tr class="text-center">
-                        <th>Nom de la matière</th>
-                        <th>Formateur</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="text-white">
-                    @foreach (var matiere in matieres)
-                    {
+        <!-- Section des matières -->
+        <div class="matieres">
+            <h4 class="text-center mb-3">Matières</h4>
+            <div class="text-center mb-3">
+                <a href="add_matiere" class="btn btn-primary">Ajouter une matière</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
                         <tr class="text-center">
-                            <td>@matiere.Nom</td>
-                            <td>@matiere.Formateur?.Nom @matiere.Formateur?.Prenom</td>
-                            <td>
-                                <a href="edit_matiere/@matiere.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
-                                <button class="btn btn-danger btn-sm m-2" @onclick="() => DeleteMatiere(matiere.Id)">Supprimer</button>
-                            </td>
+                            <th>Nom de la matière</th>
+                            <th>Formateur</th>
+                            <th>Actions</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="text-white">
+                        @foreach (var matiere in matieres)
+                        {
+                            <tr class="text-center">
+                                <td>@matiere.Nom</td>
+                                <td>@matiere.Formateur?.Nom @matiere.Formateur?.Prenom</td>
+                                <td>
+                                    <a href="edit_matiere/@matiere.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
+                                    <button class="btn btn-danger btn-sm m-2" @onclick="() => ConfirmDeleteMatiere(matiere.Id)">Supprimer</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-}
+    }
+</div>
+
+<ConfirmationModal @ref="confirmationModal"
+                   Title="Confirmation"
+                   Message="Êtes-vous sûr de vouloir supprimer ce formateur ?"
+                   OnClose="OnModalCloseFormateur" />
+
+<ConfirmationModal @ref="confirmationModalMatiere"
+                   Title="Confirmation"
+                   Message="Êtes-vous sûr de vouloir supprimer cette matière ?"
+                   OnClose="OnModalCloseMatiere" />
 
 @code {
     private bool isLoading = true;
     private List<Formateur> formateurs = new List<Formateur>();
     private List<Matiere> matieres = new List<Matiere>();
+
+    private ConfirmationModal? confirmationModal;
+    private ConfirmationModal? confirmationModalMatiere;
+    private ulong? formateurIdToDelete;
+    private ulong? matiereIdToDelete;
 
     // Méthodes de chargement des données
     protected override async Task OnInitializedAsync()
@@ -106,24 +128,54 @@ else
         isLoading = false;
     }
 
-    private async Task DeleteFormateur(ulong formateurId)
+    private void ConfirmDeleteFormateur(ulong formateurId)
     {
-        bool confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer ce formateur ?");
-        if (confirmed)
-        {
-            await DatabaseService.DeleteFormateurAsync(formateurId);
-            formateurs = formateurs.Where(f => f.Id != formateurId).ToList();
-        }
+        formateurIdToDelete = formateurId;
+        confirmationModal?.Show();
     }
 
-    private async Task DeleteMatiere(ulong matiereId)
+    private void ConfirmDeleteMatiere(ulong matiereId)
     {
-        bool confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer cette matière?");
-        if (confirmed)
+        matiereIdToDelete = matiereId;
+        confirmationModalMatiere?.Show();
+    }
+
+    private async Task OnModalCloseFormateur(bool confirmed)
+    {
+        if (confirmed && formateurIdToDelete.HasValue)
         {
-            await DatabaseService.DeleteMatiereAsync(matiereId);
-            matieres = matieres.Where(m => m.Id != matiereId).ToList();
+            try
+            {
+                await DatabaseService.DeleteFormateurAsync(formateurIdToDelete.Value);
+                formateurs = formateurs.Where(f => f.Id != formateurIdToDelete.Value).ToList();
+            }
+            catch (Exception ex)
+            {
+                // Gestion des erreurs
+                Console.WriteLine($"Erreur lors de la suppression du formateur : {ex.Message}");
+            }
         }
+        formateurIdToDelete = null;
+        confirmationModal?.Hide();
+    }
+
+    private async Task OnModalCloseMatiere(bool confirmed)
+    {
+        if (confirmed && matiereIdToDelete.HasValue)
+        {
+            try
+            {
+                await DatabaseService.DeleteMatiereAsync(matiereIdToDelete.Value);
+                matieres = matieres.Where(m => m.Id != matiereIdToDelete.Value).ToList();
+            }
+            catch (Exception ex)
+            {
+                // Gestion des erreurs
+                Console.WriteLine($"Erreur lors de la suppression de la matière : {ex.Message}");
+            }
+        }
+        matiereIdToDelete = null;
+        confirmationModalMatiere?.Hide();
     }
 
     private void GoBack()

@@ -1,0 +1,237 @@
+﻿@page "/profile"
+@using System.Security.Cryptography
+@using System.Text.Json
+@using System.Text
+@using Microsoft.Extensions.Logging
+@using CarnApprenti.Components.Layout
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager Navigation
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject DatabaseService DatabaseService
+@using static CarnApprenti.LivretApprentissageContext
+@inject ILogger<Profile> Logger
+
+<div class="sidebar">
+    <NavMenu />
+</div>
+        
+        
+<div style="margin-left:250px">
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success text-center">@successMessage</div>
+    }
+     @if (!isLoaded)
+            {
+                <p>Chargement...</p>
+            }
+            else
+            {
+                <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+                <h1 class="text-center">Votre Profil</h1>
+                <div class="profile-container">     
+                        <div class="image-profile-container">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
+                                <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0" />
+                                <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1" />
+                            </svg>
+                        </div>
+                        <div class="text-profile-container">
+                            <div>
+                                <p>@($"{user.Nom} {user.Prenom}")</p>
+                                <p>@user.Email</p>
+                            </div>
+                        </div>
+                </div>
+
+                <div class="margin-bottom text-center">
+                    <button class="btn-danger p-3" @onclick="Logout">
+                        <span>Se déconnecter</span>
+                        <svg width="20" height="20" fill="#ffffff" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg" stroke="#ffffff"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M3.651 16.989h17.326c0.553 0 1-0.448 1-1s-0.447-1-1-1h-17.264l3.617-3.617c0.391-0.39 0.391-1.024 0-1.414s-1.024-0.39-1.414 0l-5.907 6.062 5.907 6.063c0.196 0.195 0.451 0.293 0.707 0.293s0.511-0.098 0.707-0.293c0.391-0.39 0.391-1.023 0-1.414zM29.989 0h-17c-1.105 0-2 0.895-2 2v9h2.013v-7.78c0-0.668 0.542-1.21 1.21-1.21h14.523c0.669 0 1.21 0.542 1.21 1.21l0.032 25.572c0 0.668-0.541 1.21-1.21 1.21h-14.553c-0.668 0-1.21-0.542-1.21-1.21v-7.824l-2.013 0.003v9.030c0 1.105 0.895 2 2 2h16.999c1.105 0 2.001-0.895 2.001-2v-28c-0-1.105-0.896-2-2-2z"></path> </g></svg>
+                    </button>
+                </div>
+                @if (errorMessage != null)
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @errorMessage
+                    </div>
+                }
+                        <EditForm Model="@user" class="text-center" OnValidSubmit="@HandleValidSubmit">
+                            <DataAnnotationsValidator />
+
+                            <h3 class="mb-5">Modification de mes informations</h3>
+
+                            <!-- Champs Nom -->
+                            <div class="form-group mb-3 w-50 mx-auto">
+                                <label for="Nom" class="form-label">Nom</label>
+                                <InputText id="Nom" class="form-control" @bind-Value="user.Nom" />
+                            </div>
+
+                            <!-- Champs Prénom -->
+                            <div class="form-group mb-3 w-50 mx-auto">
+                                <label for="Prenom" class="form-label">Prénom</label>
+                                <InputText id="Prenom" class="form-control" @bind-Value="user.Prenom" />
+                            </div>
+
+                            <!-- Champs Email -->
+                            <div class="form-group mb-3 w-50 mx-auto">
+                                <label for="Email" class="form-label">Email</label>
+                                <InputText id="Email" class="form-control"  @bind-Value="user.Email" />
+                                <ValidationMessage For="@(() => user.Email)" />
+                            </div>
+
+                            <!-- Nouveau mot de passe -->
+                            <div class="form-group mb-3 w-50 mx-auto">
+                                <label for="NewPassword" class="form-label">Nouveau mot de passe</label>
+                                <InputText id="NewPassword" class="form-control" type="password" @bind-Value="newPassword" />
+                            </div>
+
+                            <!-- Confirmation mot de passe -->
+                            <div class="form-group mb-3 w-50 mx-auto">
+                                <label for="ConfirmPassword" class="form-label">Confirmer le mot de passe</label>
+                                <InputText id="ConfirmPassword" class="form-control" type="password" @bind-Value="confirmPassword" />
+                            </div>
+
+                            <button type="submit" class="btn btn-primary mb-3">Enregistrer</button>
+                        </EditForm>
+
+                        
+            }
+</div>
+   
+@code {
+    private User user = new User();
+    private bool isLoaded = false;
+    // Champs pour gérer le mot de passe
+    private string ?newPassword;
+    private string ?confirmPassword;
+    private string ?errorMessage;
+    private string ?successMessage;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var id = await SessionStorage.GetItemAsync<ulong?>("Id");
+            if (id == null)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            user = await DatabaseService.GetUserByIdAsync(id.Value);
+            if (user != null)
+            {
+                isLoaded = true;
+            }
+            else
+            {
+                Navigation.NavigateTo("/login");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Erreur lors du chargement des données utilisateur : {ex.Message}");
+            Navigation.NavigateTo("/login");
+        }
+    }
+
+
+    private async Task HandleValidSubmit()
+    {
+        // Mettre à jour les données utilisateur dans la base de données
+        var existingUser = await DatabaseService.GetUserByIdAsync(user.Id);
+        if (existingUser != null)
+        {
+            if (string.IsNullOrEmpty(user.Nom))
+            {
+                errorMessage = "Veuillez entrer un nom.";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(user.Prenom))
+            {
+                errorMessage = "Veuillez entrer un prénom.";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(user.Email))
+            {
+                errorMessage = "Veuillez entrer un email";
+                return;
+            }
+
+            // Hash le mot de passe avant de le stocker
+            if (!string.IsNullOrEmpty(newPassword))
+            {
+                if (newPassword != confirmPassword)
+                {
+                    errorMessage = "Les mots de passe ne correspondent pas.";
+                    return;
+                }
+
+                existingUser.Password = EncryptLaravelPassword(newPassword, "base64:COwLBPHHHx0xJdy/CAIMVbO4VbgkffA/0QntdefwruQ=");
+            }
+
+            await DatabaseService.UpdateUserAsync(existingUser);
+
+            await SessionStorage.SetItemAsync("Nom", existingUser.Nom);
+            await SessionStorage.SetItemAsync("Prenom", existingUser.Prenom);
+            await SessionStorage.SetItemAsync("Email", existingUser.Email);
+
+            successMessage = "Votre profil a été mis à jour avec succès.";
+
+            Navigation.NavigateTo("profile");
+
+        }
+    }
+
+    private async Task Logout()
+    {
+        await SessionStorage.ClearAsync();
+        Navigation.NavigateTo("/");
+    }
+
+    public static string EncryptLaravelPassword(string plainText, string laravelAppKey)
+    {
+        try
+        {
+            byte[] keyBytes = Convert.FromBase64String(laravelAppKey.Replace("base64:", ""));
+            using var aes = Aes.Create();
+            aes.Key = keyBytes;
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.PKCS7;
+            aes.GenerateIV();
+            byte[] iv = aes.IV;
+
+            using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+            using var msEncrypt = new MemoryStream();
+            using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+            using var swEncrypt = new StreamWriter(csEncrypt);
+            swEncrypt.Write(plainText);
+            swEncrypt.Close();
+
+            byte[] cipherText = msEncrypt.ToArray();
+
+            var encryptedParts = new Dictionary<string, string>
+            {
+                { "iv", Convert.ToBase64String(iv) },
+                { "value", Convert.ToBase64String(cipherText) }
+            };
+
+            string jsonString = JsonSerializer.Serialize(encryptedParts);
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Erreur de chiffrement : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException}");
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/"); // Retourner à la page des modèles
+    }
+}

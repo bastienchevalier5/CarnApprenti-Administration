@@ -4,42 +4,55 @@
 @inject NavigationManager Navigation
 @using static CarnApprenti.LivretApprentissageContext
 @inject IJSRuntime js
+@using CarnApprenti.Components.Layout
 
-<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
+<div class="sidebar">
+    <NavMenu />
+</div>
 
-<h3 class="text-center mb-4">Modifier un Formateur</h3>
+<div style="margin-left:250px">
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
 
-@if (formateurToEdit == null)
-{
-    <p class="text-center">Chargement du formateur...</p>
-}
-else
-{
-    <EditForm Model="formateurToEdit" OnValidSubmit="HandleEditFormateur">
-        <DataAnnotationsValidator />
-        <ValidationSummary class="text-danger mb-3" />
+    <h3 class="text-center mb-4">Modifier un Formateur</h3>
 
-        <div class="mb-4">
-            <label for="nom" class="form-label">Nom</label>
-            <InputText id="nom" class="form-control" @bind-Value="formateurToEdit.Nom" placeholder="Entrez le nom du formateur" />
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
         </div>
+    }
 
-        <div class="mb-4">
-            <label for="prenom" class="form-label">Prénom</label>
-            <InputText id="prenom" class="form-control" @bind-Value="formateurToEdit.Prenom" placeholder="Entrez le prénom du formateur" />
-        </div>
+    @if (formateurToEdit == null)
+    {
+        <p class="text-center">Chargement du formateur...</p>
+    }
+    else
+    {
+        <EditForm Model="formateurToEdit" class="text-center" OnValidSubmit="HandleEditFormateur">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger mb-3" />
 
-        <div class="d-flex justify-content-center mb-4">
-            <button type="submit" class="btn btn-primary btn-lg">Modifier le Formateur</button>
-        </div>
-    </EditForm>
-}
+            <div class="form-group mb-3 w-50 mx-auto">
+                <label for="nom" class="form-label">Nom</label>
+                <InputText id="nom" class="form-control" @bind-Value="formateurToEdit.Nom" />
+            </div>
 
+            <div class="form-group mb-3 w-50 mx-auto">
+                <label for="prenom" class="form-label">Prénom</label>
+                <InputText id="prenom" class="form-control" @bind-Value="formateurToEdit.Prenom" />
+            </div>
+
+            <button type="submit" class="btn btn-primary">Modifier</button>
+
+        </EditForm>
+    }
+</div>
 @code {
     [Parameter]
-    public string formateurId { get; set; }
+    public string? formateurId { get; set; }
 
     private Formateur? formateurToEdit;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -69,6 +82,18 @@ else
     {
         try
         {
+            if (string.IsNullOrEmpty(formateurToEdit?.Nom))
+            {
+                errorMessage = "Veuillez entrer un nom.";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(formateurToEdit.Prenom))
+            {
+                errorMessage = "Veuillez entrer un prénom.";
+                return;
+            }
+
             await DatabaseService.UpdateFormateurAsync(formateurToEdit);
             Navigation.NavigateTo("/formateurs/matieres");
         }

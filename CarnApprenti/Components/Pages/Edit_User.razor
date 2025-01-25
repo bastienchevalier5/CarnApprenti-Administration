@@ -8,117 +8,124 @@
 @using System.Text
 @using System.Security.Cryptography
 @using static CarnApprenti.LivretApprentissageContext
+@using CarnApprenti.Components.Layout
 
-<!-- Retour au lien -->
-<button class="retour-link bouton btn btn-secondary mb-3" @onclick="GoBack">Retour</button>
+<div class="sidebar">
+    <NavMenu />
+</div>
 
-<h1 class="text-center mb-4">Modifier un utilisateur</h1>
+<div style="margin-left:250px">
 
-@if (errorMessage != null)
-{
-    <div class="alert alert-danger" role="alert">
-        @errorMessage
-    </div>
-}
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
 
-<div class="container">
-    <div class="form-container">
-        <EditForm Model="@user" OnValidSubmit="HandleValidSubmit">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+    <h1 class="text-center mb-4">Modifier un utilisateur</h1>
 
-            <!-- Champs Nom -->
-            <div class="form-group mb-3">
-                <label for="Nom" class="form-label">Nom</label>
-                <InputText id="Nom" class="form-control" @bind-Value="user.Nom" />
-            </div>
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
 
-            <!-- Champs Prénom -->
-            <div class="form-group mb-3">
-                <label for="Prenom" class="form-label">Prénom</label>
-                <InputText id="Prenom" class="form-control" @bind-Value="user.Prenom" />
-            </div>
+    <div class="container">
+        <div class="form-container">
+            <EditForm Model="@user" class="text-center" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
 
-            <!-- Champs Email -->
-            <div class="form-group mb-3">
-                <label for="Email" class="form-label">Email</label>
-                <InputText id="Email" class="form-control" @bind-Value="user.Email" />
-            </div>
+                <!-- Champs Nom -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Nom" class="form-label">Nom</label>
+                    <InputText id="Nom" class="form-control" @bind-Value="user.Nom"  />
+                </div>
 
-            <!-- Sélectionner le rôle -->
-            <div class="form-group mb-3">
-                <label for="Role" class="form-label">Rôle</label>
-                <InputSelect id="Role" class="form-control" @bind-Value="selectedRole">
-                    <option value="">Sélectionner un rôle</option>
-                    @foreach (var role in roles)
-                    {
-                        <option value="@role">@role</option>
-                    }
-                </InputSelect>
-            </div>
+                <!-- Champs Prénom -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Prenom" class="form-label">Prénom</label>
+                    <InputText id="Prenom" class="form-control" @bind-Value="user.Prenom"  />
+                </div>
 
-            <!-- Sélectionner un apprenant si rôle 'tuteur' -->
-            @if (selectedRole == "tuteur")
-            {
-                <div class="form-group mb-3">
-                    <label for="Tuteur" class="form-label">Sélectionner un apprenant</label>
-                    <InputSelect id="Tuteur" class="form-control" @bind-Value="selectedApprenantId">
-                        <option value="">Sélectionner un apprenant</option>
-                        @foreach (var apprenant in apprenants)
+                <!-- Champs Email -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Email" class="form-label">Email</label>
+                    <InputText id="Email" class="form-control" @bind-Value="user.Email"  />
+                </div>
+
+                <!-- Sélectionner le rôle -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Role" class="form-label">Rôle</label>
+                    <InputSelect id="Role" class="form-control" @bind-Value="selectedRole">
+
+                        @foreach (var role in roles)
                         {
-                            <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>
+                            <option value="@role">@role</option>
                         }
                     </InputSelect>
                 </div>
-            }
 
-            <!-- Sélectionner un groupe si rôle 'apprenant' ou 'referent' -->
-            @if (selectedRole == "apprenant" || selectedRole == "referent")
-            {
-                <div class="form-group mb-3">
-                    <label for="Groupe" class="form-label">Groupe</label>
-                    <InputSelect id="Groupe" class="form-control" @bind-Value="selectedGroupeId">
-                        <option value="">Sélectionner un groupe</option>
-                        @foreach (var groupe in groupes)
-                        {
-                            <option value="@groupe.Id">@groupe.Nom</option>
-                        }
-                    </InputSelect>
+                <!-- Sélectionner un apprenant si rôle 'tuteur' -->
+                @if (selectedRole == "tuteur")
+                {
+                    <div class="form-group mb-3 w-50 mx-auto">
+                        <label for="Tuteur" class="form-label">Sélectionner un apprenant</label>
+                        <InputSelect id="Tuteur" class="form-control" @bind-Value="selectedApprenantId">
+
+                            @foreach (var apprenant in apprenants)
+                            {
+                                <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>
+                            }
+                        </InputSelect>
+                    </div>
+                }
+
+                <!-- Sélectionner un groupe si rôle 'apprenant' ou 'referent' -->
+                @if (selectedRole == "apprenant" || selectedRole == "referent")
+                {
+                    <div class="form-group mb-3 w-50 mx-auto">
+                        <label for="Groupe" class="form-label">Groupe</label>
+                        <InputSelect id="Groupe" class="form-control" @bind-Value="selectedGroupeId">
+
+                            @foreach (var groupe in groupes)
+                            {
+                                <option value="@groupe.Id">@groupe.Nom</option>
+                            }
+                        </InputSelect>
+                    </div>
+                }
+
+                <!-- Nouveau mot de passe -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="NewPassword" class="form-label">Nouveau mot de passe</label>
+                    <InputText id="NewPassword" class="form-control" type="password" @bind-Value="newPassword" />
                 </div>
-            }
 
-            <!-- Nouveau mot de passe -->
-            <div class="form-group mb-3">
-                <label for="NewPassword" class="form-label">Nouveau mot de passe</label>
-                <InputText id="NewPassword" class="form-control" type="password" @bind-Value="newPassword" />
-            </div>
+                <!-- Confirmation mot de passe -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="ConfirmPassword" class="form-label">Confirmer le mot de passe</label>
+                    <InputText id="ConfirmPassword" class="form-control" type="password" @bind-Value="confirmPassword" />
+                </div>
 
-            <!-- Confirmation mot de passe -->
-            <div class="form-group mb-3">
-                <label for="ConfirmPassword" class="form-label">Confirmer le mot de passe</label>
-                <InputText id="ConfirmPassword" class="form-control" type="password" @bind-Value="confirmPassword" />
-            </div>
-
-            <!-- Bouton de soumission -->
-            <button type="submit" class="btn btn-primary w-100">Modifier</button>
-        </EditForm>
+                <!-- Bouton de soumission -->
+                <button type="submit" class="btn btn-primary mb-3">Modifier</button>
+            </EditForm>
+        </div>
     </div>
 </div>
 
 @code {
-    [Parameter] public string userId { get; set; }
+    [Parameter] public string? userId { get; set; }
     private User user = new User();
-    private string errorMessage;
+    private string? errorMessage;
     private List<string> roles = new List<string> { "admin", "qualite", "referent", "apprenant", "tuteur" };
     private List<Groupe> groupes = new List<Groupe>();
     private List<User> apprenants = new List<User>();
-    private string selectedRole;
+    private string? selectedRole;
     private ulong? selectedGroupeId;
     private ulong? selectedApprenantId;
 
     // Champs pour gérer le mot de passe
-    private string newPassword;
-    private string confirmPassword;
+    private string? newPassword;
+    private string? confirmPassword;
 
     protected override async Task OnInitializedAsync()
     {
@@ -143,6 +150,30 @@
     {
         try
         {
+            if (string.IsNullOrEmpty(user.Nom))
+            {
+                errorMessage = "Veuillez entrer un nom.";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(user.Prenom))
+            {
+                errorMessage = "Veuillez entrer un prénom.";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(user.Email))
+            {
+                errorMessage = "Veuillez entrer un email";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(selectedRole))
+            {
+                errorMessage = "Veuillez sélectionner un rôle.";
+                return;
+            }
+
             if (selectedRole == "tuteur")
             {
                 user.ApprenantId = selectedApprenantId;

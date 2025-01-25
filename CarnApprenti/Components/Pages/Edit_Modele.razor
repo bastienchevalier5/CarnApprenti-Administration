@@ -6,90 +6,116 @@
 @inject NavigationManager Navigation
 @inject ILogger<Edit_Modele> Logger
 @inject IJSRuntime js
+@using CarnApprenti.Components.Layout
 
-<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
+<div class="sidebar">
+    <NavMenu />
+</div>
 
-<h1 class="text-center mt-4 mb-5">Modifier un modèle</h1>
+<div style="margin-left:250px">
 
-@if (isLoading)
-{
-    <div class="text-center">
-        <h2>Chargement des données...</h2>
-    </div>
-}
-else
-{
-    <EditForm Model="modele" OnValidSubmit="HandleSubmit">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
 
-        <div class="form-group mb-4">
-            <label for="nom" class="form-label">Nom du modèle</label>
-            <InputText id="nom" class="form-control" @bind-Value="modele.Nom" />
+    <h1 class="text-center mb-4">Modifier un modèle</h1>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
         </div>
+    }
 
-        <div class="form-group mb-4">
-            <label for="groupe" class="form-label">Groupe</label>
-            <InputSelect id="groupe" class="form-control" @bind-Value="modele.GroupeId">
-                @foreach (var groupe in groupes)
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <h2>Chargement des données...</h2>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="modele" class="text-center" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group mb-3 w-50 mx-auto">
+                <label for="nom" class="form-label">Nom du modèle</label>
+                @if (modele != null)
                 {
-                    <option value="@groupe.Id">@groupe.Nom</option>
+                    <InputText id="nom" class="form-control" @bind-Value="modele.Nom" />
                 }
-            </InputSelect>
-        </div>
+            </div>
 
-        <div class="form-group mb-4">
-            <label for="siteId" class="form-label">Choisir un site</label>
-            <InputSelect id="siteId" class="form-control" @bind-Value="modele.SiteId">
-                @foreach (var site in sites)
+            <div class="form-group mb-3 w-50 mx-auto">
+                <label for="groupe" class="form-label">Groupe</label>
+                @if (modele != null)
                 {
-                    <option value="@site.Id">@site.Nom</option>
+                    <InputSelect id="groupe" class="form-control" @bind-Value="modele.GroupeId">
+
+                        @foreach (var groupe in groupes)
+                        {
+                            <option value="@groupe.Id">@groupe.Nom</option>
+                        }
+                    </InputSelect>
+
                 }
-            </InputSelect>
-        </div>
+            </div>
 
-        <!-- Compositions -->
-        <div class="form-group" id="compositionContainer">
-            <h3>Compositions (@compositionModels.Count)</h3>
-            @for (int i = 0; i < compositionModels.Count; i++)
-            {
-                var currentIndex = i;
-                <div class="composition-block border p-3 mb-3">
-                    <p>Composition @(currentIndex + 1)</p>
+            <div class="form-group mb-3 w-50 mx-auto">
+                <label for="siteId" class="form-label">Choisir un site</label>
+                @if (modele != null)
+                {
+                    <InputSelect id="siteId" class="form-control" @bind-Value="modele.SiteId">
 
-                    <div class="mb-3">
-                        <label for="@($"type_{currentIndex}")">Type de composition :</label>
-                        <InputText id="@($"type_{currentIndex}")" class="form-control"
-                                   @bind-Value="compositionModels[currentIndex].Type" />
+                        @foreach (var site in sites)
+                        {
+                            <option value="@site.Id">@site.Nom</option>
+                        }
+                    </InputSelect>
+                }
+            </div>
+
+            <!-- Compositions -->
+            <div class="form-group mb-3 w-50 mx-auto" id="compositionContainer">
+                <h3>Compositions</h3>
+                @for (int i = 0; i < compositionModels.Count; i++)
+                {
+                    var currentIndex = i;
+                    <div class="composition-block border p-3 mb-3">
+                        <p>Composition @(currentIndex + 1)</p>
+
+                        <div class="form-group mb-3 w-50 mx-auto">
+                            <label for="@($"type_{currentIndex}")">Type de composition :</label>
+                            <InputText id="@($"type_{currentIndex}")" class="form-control"
+                                       @bind-Value="compositionModels[currentIndex].Type" />
+                        </div>
+
+                        <div class="form-group mb-3 w-50 mx-auto">
+                            <label for="@($"pdf_{currentIndex}")">PDF de la composition :</label>
+                            <InputFile id="@($"pdf_{currentIndex}")" class="form-control"
+                                       OnChange="@(e => HandleFileSelected(e, currentIndex))" />
+                            <small class="form-text text-muted">Fichier actuel : @compositionModels[currentIndex].ExistingFileName</small>
+                        </div>
                     </div>
+                }
 
-                    <div class="mb-3">
-                        <label for="@($"pdf_{currentIndex}")">PDF de la composition :</label>
-                        <InputFile id="@($"pdf_{currentIndex}")" class="form-control"
-                                   OnChange="@(e => HandleFileSelected(e, currentIndex))" />
-                        <small class="form-text text-muted">Fichier actuel : @compositionModels[currentIndex].ExistingFileName</small>
-                    </div>
-                </div>
-            }
+                <button type="button" class="btn btn-info mt-3" @onclick="AddComposition">
+                    Ajouter une composition
+                </button>
+            </div>
 
-            <button type="button" class="btn btn-info mt-3" @onclick="AddComposition">
-                Ajouter une composition (+)
-            </button>
-        </div>
+            <button type="submit" class="btn btn-primary mb-3">Modifier</button>
 
-        <div class="d-flex justify-content-center">
-            <button type="submit" class="btn btn-primary btn-lg">Enregistrer</button>
-        </div>
-    </EditForm>
-}
-
+        </EditForm>
+    }
+</div>
 @code {
-    [Parameter] public string modeleId { get; set; }
+    [Parameter] public string ?modeleId { get; set; }
     private bool isLoading = true;
-    private Modele modele = new Modele();
+    private Modele? modele = new Modele();
     private List<Site> sites = new List<Site>();
     private List<Groupe> groupes = new List<Groupe>();
     private List<CompositionModel> compositionModels = new List<CompositionModel>();
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -99,7 +125,11 @@ else
             sites = await DatabaseService.GetSitesAsync();
             groupes = await DatabaseService.GetGroupesAsync();
 
-            modele = await DatabaseService.GetModeleByIdAsync(ulong.Parse(modeleId));
+            if (modeleId != null)
+            {
+                modele = await DatabaseService.GetModeleByIdAsync(ulong.Parse(modeleId));
+
+            }
             if (modele == null)
             {
                 Navigation.NavigateTo("/modeles");
@@ -129,7 +159,16 @@ else
         {
             Logger.LogInformation("Début de la soumission du formulaire");
 
-            await DatabaseService.UpdateModeleAsync(modele);
+            if (modele != null)
+            {
+                if (string.IsNullOrEmpty(modele.Nom))
+                {
+                    errorMessage = "Veuillez entrer un nom";
+                    return;
+                }
+
+                await DatabaseService.UpdateModeleAsync(modele);
+            }
 
             foreach (var composition in compositionModels)
             {
@@ -139,7 +178,7 @@ else
 
                     var fileUrl = await UploadFile(composition.File);
 
-                    if (composition.Id == 0) // New Composition
+                    if (composition.Id == 0 && modele != null) // New Composition
                     {
                         var newComposition = new Composition
                             {
@@ -155,15 +194,17 @@ else
 
                     }
                     else // Existing Composition
-                    {
-                        await DatabaseService.UpdateCompositionAsync(new Composition
-                            {
-                                Id = composition.Id,
-                                Nom = composition.Type,
-                                Lien = fileUrl,
-                                ModeleId = modele.Id,
-                                UpdatedAt = DateTime.UtcNow
-                            });
+                    {   if (modele != null)
+                        {
+                            await DatabaseService.UpdateCompositionAsync(new Composition
+                                {
+                                    Id = composition.Id,
+                                    Nom = composition.Type,
+                                    Lien = fileUrl,
+                                    ModeleId = modele.Id,
+                                    UpdatedAt = DateTime.UtcNow
+                                });
+                        }
                         Logger.LogInformation("Composition modifiée avec succès");
 
                     }
@@ -231,8 +272,8 @@ else
 
     private class CompositionModel
     {
-        public string Type { get; set; } = string.Empty;
-        public string ExistingFileName { get; set; } = string.Empty;
+        public string ?Type { get; set; } = string.Empty;
+        public string ?ExistingFileName { get; set; } = string.Empty;
         public IBrowserFile? File { get; set; }
         public ulong Id { get; set; }
     }

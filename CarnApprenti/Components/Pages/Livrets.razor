@@ -6,69 +6,84 @@
 @inject PdfService PdfService
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
 @inject IJSRuntime js
+@using CarnApprenti.Components.Layout
 
-<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
+<div class="sidebar">
+    <NavMenu />
+</div>
 
-<h1 class="text-center m-4">Gestion des Livrets</h1>
+<div style="margin-left:250px">
 
-@if (isLoading)
-{
-    <div class="text-center">
-        <h2>Chargement en cours...</h2>
-    </div>
-}
-else
-{
-    <div class="container_bouton">
-        <a class="btn btn-primary" href="add_livret">Ajouter un livret</a>
-    </div>
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
 
-    @if (livrets != null && livrets.Count > 0)
+    <h1 class="text-center m-4">Gestion des Livrets</h1>
+
+    @if (isLoading)
     {
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead class="table-dark">
-                    <tr class="text-center">
-                        <th>Nom du modèle</th>
-                        <th>Nom de l'apprenant</th>
-                        <th>Prénom de l'apprenant</th>
-                        <th>Compte Rendu</th>
-                        <th>Observations Globales</th>
-                        <th>PDF</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="text-white">
-                    @foreach (var livret in livrets)
-                    {
-                        <tr class="text-center">
-                            <td>@livret.Modele.Nom</td>
-                            <td>@livret.User.Nom</td>
-                            <td>@livret.User.Prenom</td>
-                            <td><a class="btn btn-info btn-sm" href="compte_rendu/@livret.Id">Voir le Compte-Rendu</a></td>
-                            <td><a class="btn btn-info btn-sm" href="observations/@livret.Id">Voir les Observations</a></td>
-                            <td>
-                                <button class="btn btn-info btn-sm" @onclick="() => GeneratePdf(livret.Id)">Télécharger le PDF</button>
-                            </td>
-                            <td>
-                                <a class="btn btn-warning btn-sm m-2" href="edit_livret/@livret.Id">Modifier</a>
-                                <button class="btn btn-danger btn-sm m-2" @onclick="() => DeleteLivret(livret.Id)">Supprimer</button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+        <div class="text-center">
+            <h2>Chargement en cours...</h2>
         </div>
     }
     else
     {
-        <p class="text-center alert alert-warning">Aucun livret disponible.</p>
+        <div class="container_bouton">
+            <a class="btn btn-primary" href="add_livret">Ajouter un livret</a>
+        </div>
+
+        @if (livrets != null && livrets.Count > 0)
+        {
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                        <tr class="text-center">
+                            <th>Nom du modèle</th>
+                            <th>Nom de l'apprenant</th>
+                            <th>Prénom de l'apprenant</th>
+                            <th>Compte Rendu</th>
+                            <th>Observations Globales</th>
+                            <th>PDF</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-white">
+                        @foreach (var livret in livrets)
+                        {
+                            <tr class="text-center">
+                                <td>@livret.Modele.Nom</td>
+                                <td>@livret.User.Nom</td>
+                                <td>@livret.User.Prenom</td>
+                                <td><a class="btn btn-info btn-sm" href="compte_rendu/@livret.Id">Voir le Compte-Rendu</a></td>
+                                <td><a class="btn btn-info btn-sm" href="observations/@livret.Id">Voir les Observations</a></td>
+                                <td>
+                                    <button class="btn btn-info btn-sm" @onclick="() => GeneratePdf(livret.Id)">Télécharger le PDF</button>
+                                </td>
+                                <td>
+                                    <a class="btn btn-warning btn-sm m-2" href="edit_livret/@livret.Id">Modifier</a>
+                                    <button class="btn btn-danger btn-sm m-2" @onclick="() => ConfirmDelete(livret.Id)">Supprimer</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="text-center alert alert-warning">Aucun livret disponible.</p>
+        }
     }
-}
+</div>
+
+<ConfirmationModal @ref="confirmationModal"
+                   Title="Confirmation"
+                   Message="Êtes-vous sûr de vouloir supprimer ce livret ?"
+                   OnClose="OnModalClose" />
 
 @code {
     private bool isLoading = true;
     private List<Livret> livrets = new List<Livret>();
+    private ConfirmationModal? confirmationModal;
+    private ulong? livretIdToDelete;
 
     protected override async Task OnInitializedAsync()
     {
@@ -87,15 +102,19 @@ else
         isLoading = false;
     }
 
-    private async Task DeleteLivret(ulong livretId)
+    private void ConfirmDelete(ulong livretId)
     {
-        // Confirmation avant de supprimer
-        bool confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer ce livret ?");
-        if (confirmed)
+        livretIdToDelete = livretId;
+        confirmationModal?.Show();
+    }
+
+    private async Task OnModalClose(bool confirmed)
+    {
+        if (confirmed && livretIdToDelete.HasValue)
         {
             try
             {
-                await DatabaseService.DeleteLivretAsync(livretId);
+                await DatabaseService.DeleteLivretAsync(livretIdToDelete.Value);
                 livrets = await DatabaseService.GetLivretsAsync(); // Recharger les livrets après suppression
             }
             catch (Exception ex)
@@ -103,6 +122,8 @@ else
                 Console.WriteLine($"Erreur lors de la suppression du livret : {ex.Message}");
             }
         }
+        livretIdToDelete = null;
+        confirmationModal?.Hide();
     }
 
     private async Task GeneratePdf(ulong livretId)
@@ -110,7 +131,7 @@ else
         var livret = livrets.FirstOrDefault(l => l.Id == livretId);
         if (livret == null) return;
 
-        var idModele = livret.Modele.Id;
+        var idModele = livret.Modele?.Id;
         var pdfBytes = await PdfService.GeneratePdfAsync(idModele, livretId);
 
         // Convertir le contenu du PDF en Base64
@@ -120,9 +141,6 @@ else
         // Utiliser FileSaver.js pour télécharger le PDF
         await js.InvokeVoidAsync("saveAs", fileUrl, "livret_apprentissage.pdf");
     }
-
-
-
 
     private void GoBack()
     {

@@ -26,18 +26,24 @@ using System;
 using System.Transactions;
 using System.Numerics;
 using CarnApprenti.Components.Pages;
+using iText.Kernel.Exceptions;
+using Microsoft.Extensions.Logging;
+using Path = System.IO.Path;
 
 namespace CarnApprenti
 {
     public class ModeleService
     {
         private readonly LivretApprentissageContext _context;
+        private readonly ILogger<DatabaseService> _logger;
+
         private PdfFont _defaultFont;
         private PdfFont _boldFont;
         private PdfFont _italicFont;
 
-        public ModeleService(LivretApprentissageContext context)
+        public ModeleService(LivretApprentissageContext context, ILogger<DatabaseService> logger)
         {
+            _logger = logger;
             _context = context;
             InitializeFonts();
         }
@@ -78,8 +84,8 @@ namespace CarnApprenti
                 document.SetMargins(50, 50, 50, 50);
 
                 AddFirstPage(document, modele);
-                await AddCompositionPages(document, modele);
-                //await AddPersonnelPage(document, modele);
+                await AddCompositionPagesAsync(document, modele);
+                await AddPersonnelPage(document, modele);
                 await AddEquipePedagogiquePage(document, modele);
                 AddCompteRenduPageAsync(document, modele);
                 AddObservationsPage(document, modele);
@@ -142,7 +148,6 @@ namespace CarnApprenti
                 document.Add(siteParagraph);
 
                 AddFooter(document, modele);
-                document.Add(new AreaBreak(AreaBreakType.NEXT_PAGE));
             }
             catch (Exception ex)
             {
@@ -154,7 +159,7 @@ namespace CarnApprenti
         // Reste des méthodes inchangées sauf pour l'ajout des paramètres de groupe et site où nécessaire
 
 
-        private async Task AddCompositionPages(Document document, Modele modele)
+        private async Task AddCompositionPagesAsync(Document document, Modele modele)
         {
             try
             {
@@ -166,25 +171,60 @@ namespace CarnApprenti
                 {
                     foreach (var composition in compositions)
                     {
-                        if (File.Exists(composition.Lien))
+                        var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                        var projectRoot = Path.Combine(baseDirectory, "..", "..", "..", "..", "..", "wwwroot");
+                        var wwwrootPath = Path.GetFullPath(projectRoot);
+                        var pdfPath = Path.Combine(wwwrootPath, composition.Lien);
+
+                        if (File.Exists(pdfPath))
                         {
-                            using var reader = new PdfReader(composition.Lien);
-                            using var srcDoc = new PdfDocument(reader);
-                            var merger = new PdfMerger(document.GetPdfDocument());
-                            merger.Merge(srcDoc, 1, srcDoc.GetNumberOfPages());
-                            AddFooter(document, modele);
-                            document.Add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+                            try
+                            {
+                                _logger.LogInformation("Debut tentative Composition PDF");
+                                using var reader = new PdfReader(pdfPath);
+                                using var srcDoc = new PdfDocument(reader);
+
+                                // Vérifiez si le PDF contient des pages avant de fusionner
+                                if (srcDoc.GetNumberOfPages() > 0)
+                                {
+                                    var merger = new PdfMerger(document.GetPdfDocument());
+
+                                    // Merge each page separately and add a page break after each page
+                                    for (int i = 1; i <= srcDoc.GetNumberOfPages(); i++)
+                                    {
+                                        merger.Merge(srcDoc, i, i);
+                                        AddFooter(document, modele);
+                                        if (i < srcDoc.GetNumberOfPages()) // Avoid adding a page break after the last page of the document
+                                        {
+                                            document.Add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+                                        }
+                                    }
+
+                                    // Add a page break after the whole composition, if needed
+                                    document.Add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+                                }
+                                else
+                                {
+                                    _logger.LogError($"[ERROR] Le fichier PDF {pdfPath} est vide.");
+                                }
+                            }
+                            catch (PdfException pdfEx)
+                            {
+                                _logger.LogError($"[ERROR] Erreur PDF lors de la fusion du fichier {composition.Lien}: {pdfEx.Message}");
+                            }
                         }
                         else
                         {
-                            Console.WriteLine($"[ERROR] Fichier introuvable : {composition.Lien}");
+                            _logger.LogError($"[ERROR] Fichier introuvable : {pdfPath}");
                         }
                     }
                 }
+                document.Add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Erreur lors de l'ajout des pages de composition : {ex.Message}");
+                _logger.LogError($"[ERROR] Erreur lors de l'ajout des pages de composition : {ex.Message}");
                 throw;
             }
         }
@@ -210,30 +250,20 @@ namespace CarnApprenti
                     .SetMarginLeft(-5)
                     .SetFont(_boldFont);
                 document.Add(title);
-
-                // Récupération du personnel avec une nouvelle instance de context
-                List<Personnel> personnels;
-                using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
-                {
-                    using (var dbContext = new LivretApprentissageContext())
-                    {
-                        personnels = await dbContext.Personnels
+                var personnels = await _context.Personnels
                             .Include(p => p.PersonnelSites)
                             .AsNoTracking()
                             .Where(p => p.PersonnelSites.Any(ps => ps.SiteId == modele.Site.Id))
                             .ToListAsync();
-                    }
-                    scope.Complete();
-                }
 
-                Console.WriteLine($"Found {personnels.Count} personnel for site {modele.Site.Nom}");
+                _logger.LogInformation($"Found {personnels.Count} personnel for site {modele.Site.Nom}");
 
                 // Ajout des informations du personnel
                 foreach (var personnel in personnels)
                 {
                     if (string.IsNullOrEmpty(personnel.Prenom) || string.IsNullOrEmpty(personnel.Nom))
                     {
-                        Console.WriteLine("Invalid personnel data: Missing Prenom or Nom");
+                        _logger.LogError("Invalid personnel data: Missing Prenom or Nom");
                         continue;
                     }
 
@@ -275,16 +305,16 @@ namespace CarnApprenti
             }
             catch (iText.Kernel.Exceptions.PdfException pdfEx)
             {
-                Console.WriteLine($"PDF Exception: {pdfEx.Message}");
+                _logger.LogError($"PDF Exception: {pdfEx.Message}");
                 throw;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"General Exception: {ex.Message}");
-                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                _logger.LogError($"General Exception: {ex.Message}");
+                _logger.LogError($"Stack Trace: {ex.StackTrace}");
                 if (ex.InnerException != null)
                 {
-                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                    _logger.LogError($"Inner Exception: {ex.InnerException.Message}");
                 }
                 throw;
             }
@@ -373,7 +403,7 @@ namespace CarnApprenti
 
                 AddCompteRenduSection(document,
                     "Observations du tuteur","",
-                    50);
+                    100);
 
                 AddCompteRenduSection(document,
                     "Observations du référent du groupe", "",
@@ -424,28 +454,15 @@ namespace CarnApprenti
                     .SetFont(_boldFont)
                     .SetFontSize(14)
                     .SetFontColor(new DeviceRgb(0, 88, 165))
-                    .SetMarginBottom(5)
+                    .SetMarginBottom(170)
                     .SetMarginTop(-25);
                 document.Add(apprentiTitle);
-
-                var apprentiContent = new Paragraph("[Observations de l'apprenti]")
-                    .SetFont(_defaultFont)
-                    .SetFontSize(10)
-                    .SetMarginBottom(165);
-                document.Add(apprentiContent);
 
                 var adminTitle = new Paragraph("OBSERVATIONS DU RESPONSABLE PEDAGOGIQUE")
                     .SetFont(_boldFont)
                     .SetFontSize(14)
-                    .SetFontColor(new DeviceRgb(0, 88, 165))
-                    .SetMarginBottom(5);
+                    .SetFontColor(new DeviceRgb(0, 88, 165));
                 document.Add(adminTitle);
-
-                var adminContent = new Paragraph("[Observations du responsable pédagogique]")
-                    .SetFont(_defaultFont)
-                    .SetFontSize(10)
-                    .SetMarginBottom(165);
-                document.Add(adminContent);
 
                 AddFooter(document, modele);
             }
@@ -460,6 +477,7 @@ namespace CarnApprenti
         {
             var footer = new Paragraph("LIVRET D'APPRENTISSAGE / " + modele.Groupe.Nom)
                 .SetFont(_italicFont)
+                .SetFontColor(ColorConstants.BLACK)
                 .SetFontSize(8)
                 .SetTextAlignment(TextAlignment.LEFT)
                 .SetFixedPosition(document.GetPdfDocument().GetNumberOfPages(), 30, 30, 500);

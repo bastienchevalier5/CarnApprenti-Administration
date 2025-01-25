@@ -27,24 +27,5 @@
 
     <script src="_framework/blazor.webview.js" autostart="false"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
-    <script>
-        Blazor.start({
-            loadBootResource: function (type, name, defaultUri, integrity) {
-                switch (name.toLowerCase()) {
-                    case 'dotnet.timezones.blat':
-                    case 'dotnet.wasm':
-                    case 'dotnet.native.wasm':
-                        return fetch(defaultUri, { cache: 'no-cache' });
-                }
-                return fetch(defaultUri);
-            }
-        });
-    </script>
-    <!-- TinyMCE CDN -->
-    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/5/tinymce.min.js" referrerpolicy="origin"></script>
-
-    <script src="js/tinymce-init.js"></script>
-
 </body>
 </html>

@@ -1,27 +1,113 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">CarnApprenti</a>
+﻿@* NavMenu.razor *@
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager Navigation
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+
+<ConfirmationModal @ref="confirmationModal"
+                   Title="Confirmation"
+                   Message="Voulez-vous vraiment quitter l'application ?"
+                   OnClose="OnModalClose" />
+﻿<div>
+    <div class="d-flex justify-content-center">
+        <a class="navbar-brand text-center" href=""><img src="/carnapprenti-removebg-preview.png" alt="Logo" /></a>
     </div>
 </div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Home
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
         </div>
+        @if (isAuthenticated)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="profile">
+                    <span>
+                        <svg style="margin-left:-2px" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
+                            <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0" />
+                            <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1" />
+                        </svg>
+                    </span> Mon Profil
+                </NavLink>
+            </div>
+        }
+        else
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="login">
+                    <span><svg style="margin-left:-5px" fill="#ffffff" height="20" width="20" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" xml:space="preserve" stroke="#ffffff" stroke-width="25.6"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g> <g> <path d="M327.287,246.852l-74.931-76.595c-4.941-5.06-13.039-5.146-18.099-0.205c-5.06,4.941-5.146,13.056-0.205,18.099 l53.854,55.057H12.8C5.734,243.2,0,248.934,0,256c0,7.066,5.734,12.8,12.8,12.8h275.098l-53.845,55.057 c-4.941,5.043-4.855,13.158,0.205,18.099c5.06,4.941,13.158,4.855,18.099-0.205l75.128-76.8 C332.424,259.908,332.339,251.793,327.287,246.852z"></path> </g> </g> <g> <g> <path d="M499.2,0H166.4c-7.066,0-12.8,5.734-12.8,12.8V192h25.6V25.6h307.2v460.8H179.2V320h-25.6v179.2 c0,7.066,5.734,12.8,12.8,12.8h332.8c7.066,0,12.8-5.734,12.8-12.8V12.8C512,5.734,506.266,0,499.2,0z"></path> </g> </g> </g></svg><span style="margin-left:15px">Se connecter</span></span>
+                </NavLink>
+            </div>
+        }
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="login">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Login
+            <NavLink class="nav-link" @onclick="ShowConfirmationModal">
+                <span>
+                    <svg style="margin-left:-5px" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-circle-fill" viewBox="0 0 16 16">
+                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293z" />
+                    </svg>
+                </span> Quitter l'application
             </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="qualite">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
+
     </nav>
 </div>
+
+@code {
+    private bool isAuthenticated = false;
+    private ConfirmationModal? confirmationModal;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var id = await SessionStorage.GetItemAsync<ulong?>("Id");
+            isAuthenticated = id.HasValue;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during initialization: {ex.Message}");
+        }
+    }
+
+    private void ShowConfirmationModal()
+    {
+        try
+        {
+            if (confirmationModal is null)
+            {
+                Console.WriteLine("Modal reference is null");
+                return;
+            }
+            confirmationModal.Show();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error showing modal: {ex.Message}");
+        }
+    }
+
+    private void OnModalClose(bool confirmed)
+    {
+        try
+        {
+            if (confirmed && Application.Current != null)
+            {
+                Application.Current.Quit();
+            }
+            confirmationModal?.Hide();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error closing application: {ex.Message}");
+        }
+    }
+
+    private async Task Logout()
+    {
+        await SessionStorage.ClearAsync();
+        isAuthenticated = false;
+        Navigation.NavigateTo("/login");
+    }
+}

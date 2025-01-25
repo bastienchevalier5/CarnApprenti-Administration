@@ -10,27 +10,18 @@ using System.Diagnostics;
 
 namespace CarnApprenti
 {
-    public class DatabaseService
+    public class DatabaseService(LivretApprentissageContext context, ILogger<DatabaseService> logger)
     {
-        private readonly LivretApprentissageContext _context;
-        private readonly ILogger<DatabaseService> _logger;
-        private string _connectionString;
-
-        public DatabaseService(LivretApprentissageContext context, ILogger<DatabaseService> logger)
-        {
-            _context = context;
-            _logger = logger;
-        }
+        private readonly LivretApprentissageContext _context = context;
+        private readonly ILogger<DatabaseService?> _logger = logger;
 
         /// <summary>
         /// Récupère un utilisateur à partir de son email.
         /// </summary>
         /// <param name="email">Email de l'utilisateur</param>
         /// <returns>Un dictionnaire contenant les informations de l'utilisateur</returns>
-        public async Task<Dictionary<string, object>?> GetUserByEmailAsync(string email)
+        public async Task<User?> GetUserByEmailAsync(string email)
         {
-            try
-            {
                 var user = await _context.Users
                                          .Include(u => u.Groupe)
                                          .FirstOrDefaultAsync(u => u.Email == email);
@@ -41,22 +32,7 @@ namespace CarnApprenti
                 }
 
                 // Convertir les propriétés de l'utilisateur en un dictionnaire
-                return new Dictionary<string, object>
-                {
-                    { "Id", user.Id },
-                    { "Nom", user.Nom },
-                    { "Prenom", user.Prenom },
-                    { "Email", user.Email },
-                    { "Password", user.Password }, // Le hash du mot de passe
-                    { "GroupeId", user.GroupeId },
-                    { "ApprenantId", user.ApprenantId },
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de la récupération de l'utilisateur par email");
-                throw;
-            }
+                return user;
         }
 
 
@@ -77,8 +53,6 @@ namespace CarnApprenti
         /// <param name="userId">ID de l'utilisateur à supprimer</param>
         public async Task DeleteUserAsync(ulong userId)
         {
-            try
-            {
                 var user = await _context.Users.FindAsync(userId);
                 if (user != null)
                 {
@@ -89,12 +63,7 @@ namespace CarnApprenti
                 {
                     throw new Exception("Utilisateur non trouvé.");
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de la suppression de l'utilisateur avec l'ID {UserId}", userId);
-                throw;
-            }
+            
         }
 
         /// <summary>
@@ -103,8 +72,6 @@ namespace CarnApprenti
         /// <param name="idGroupe">ID du groupe à supprimer</param>
         public async Task DeleteGroupeAsync(ulong idGroupe)
         {
-            try
-            {
                 var groupe = await _context.Groupes.FindAsync(idGroupe);
                 if (groupe != null)
                 {
@@ -115,58 +82,18 @@ namespace CarnApprenti
                 {
                     throw new Exception("Groupe non trouvé.");
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erreur lors de la suppression du groupe avec l'ID {IdGroupe}", idGroupe);
-                throw;
-            }
+            
         }
 
-        public async Task CreateRoleAsync(string roleName, string title)
-        {
-            var role = new Role
-            {
-                Name = roleName,
-                Title = title,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _context.Roles.Add(role);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task<bool> UserHasRoleAsync(ulong userId, string roleName)
-        {
-            var hasRole = await _context.AssignedRoles
-                .Include(ar => ar.Role) // Charge les rôles liés
-                .AnyAsync(ar => ar.EntityId == userId && ar.Role.Name == roleName);
-
-            return hasRole;
-        }
-
-        public async Task RemoveRoleFromUserAsync(ulong userId, ulong roleId)
-        {
-            var assignedRole = await _context.AssignedRoles
-                .FirstOrDefaultAsync(ar => ar.EntityId == userId && ar.RoleId == roleId);
-
-            if (assignedRole != null)
-            {
-                _context.AssignedRoles.Remove(assignedRole);
-                await _context.SaveChangesAsync();
-            }
-        }
-
-        public async Task<string> GetUserRolesAsync(ulong userId)
+        public async Task<string?> GetUserRolesAsync(ulong userId)
         {
             var role = await _context.AssignedRoles
                 .Include(ar => ar.Role)
                 .Where(ar => ar.EntityId == userId)
-                .Select(ar => ar.Role.Name)
+                .Select(ar =>  ar.Role.Name)
                 .FirstOrDefaultAsync(); // Retourne le premier rôle ou null si aucun rôle trouvé
 
-            return role ?? "defaultRole"; // Retourne un rôle par défaut si aucun rôle trouvé
+            return role;
         }
 
 
@@ -183,13 +110,13 @@ namespace CarnApprenti
             await _context.SaveChangesAsync();
         }
 
-        public async Task<Groupe> GetGroupeByIdAsync(ulong id)
+        public async Task<Groupe?> GetGroupeByIdAsync(ulong id)
         {
             return await _context.Groupes
                                  .FirstOrDefaultAsync(g => g.Id == id);
         }
 
-        public async Task UpdateGroupeAsync(Groupe groupe)
+        public async Task UpdateGroupeAsync(Groupe? groupe)
         {
             _context.Groupes.Update(groupe);
             await _context.SaveChangesAsync();
@@ -273,21 +200,11 @@ namespace CarnApprenti
                 var user = await _context.Users
                     .Include(u => u.AssignedRoles)
                         .ThenInclude(ar => ar.Role)
-                    .FirstOrDefaultAsync(u => u.Id == entityId);
-
-                if (user == null)
-                {
-                    throw new Exception("Utilisateur non trouvé.");
-                }
+                    .FirstOrDefaultAsync(u => u.Id == entityId) ?? throw new Exception("Utilisateur non trouvé.");
 
                 // Récupérer le nouveau rôle
                 var roleEntity = await _context.Roles
-                    .FirstOrDefaultAsync(r => r.Name == newRole);
-
-                if (roleEntity == null)
-                {
-                    throw new Exception($"Rôle '{newRole}' non trouvé.");
-                }
+                    .FirstOrDefaultAsync(r => r.Name == newRole) ?? throw new Exception($"Rôle '{newRole}' non trouvé.");
 
                 // Récupérer le rôle actuel de manière sécurisée
                 var currentAssignedRole = user.AssignedRoles?
@@ -303,7 +220,6 @@ namespace CarnApprenti
                 if (wasReferentOrApprenant && !willBeReferentOrApprenant)
                 {
                     user.GroupeId = null;
-                    _logger.LogInformation($"Suppression du groupe pour l'utilisateur {user.Id} car n'est plus référent ou apprenant");
                 }
 
                 // Vérifier si l'utilisateur était tuteur avant le changement
@@ -314,7 +230,6 @@ namespace CarnApprenti
                 if (wasTuteur && !willBeTuteur)
                 {
                     user.ApprenantId = null;
-                    _logger.LogInformation($"Suppression de l'apprenant associé pour l'utilisateur {user.Id} car n'est plus tuteur");
                 }
 
                 if (currentAssignedRole != null)
@@ -322,7 +237,6 @@ namespace CarnApprenti
                     // Mettre à jour le rôle existant
                     currentAssignedRole.RoleId = roleEntity.Id;
                     currentAssignedRole.EntityType = "App\\Models\\User";
-                    _logger.LogInformation($"Mise à jour du rôle pour l'utilisateur {user.Id} vers {newRole}");
                 }
                 else
                 {
@@ -337,21 +251,18 @@ namespace CarnApprenti
                         RestrictedToType = null
                     };
                     _context.AssignedRoles.Add(newAssignedRole);
-                    _logger.LogInformation($"Création d'un nouveau rôle pour l'utilisateur {user.Id}: {newRole}");
                 }
 
                 // Sauvegarder tous les changements
                 await _context.SaveChangesAsync();
-                _logger.LogInformation($"Changements sauvegardés avec succès pour l'utilisateur {user.Id}");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Erreur lors de l'assignation du rôle: {ex.Message}");
                 throw new Exception($"Erreur lors de l'assignation du rôle: {ex.Message}");
             }
         }
 
-        public async Task<User> GetUserByIdAsync(ulong userId)
+        public async Task<User?> GetUserByIdAsync(ulong userId)
         {
             try
             {
@@ -373,12 +284,7 @@ namespace CarnApprenti
             {
                 var existingUser = await _context.Users
                     .Where(u => u.Id == user.Id)
-                    .FirstOrDefaultAsync();
-
-                if (existingUser == null)
-                {
-                    throw new Exception("Utilisateur introuvable.");
-                }
+                    .FirstOrDefaultAsync() ?? throw new Exception("Utilisateur introuvable.");
 
                 // Mettre à jour les propriétés de l'utilisateur
                 existingUser.Nom = user.Nom;
@@ -399,7 +305,7 @@ namespace CarnApprenti
             }
         }
 
-        public async Task<List<string>> GetAllUserEmailsAsync()
+        public async Task<List<string?>> GetAllUserEmailsAsync()
         {
             return await _context.Users
                 .Where(u => u.Email != null)
@@ -413,13 +319,13 @@ namespace CarnApprenti
             {
                 // Supposons que _context est un DbContext ou similaire
                 var formateurs = await _context.Formateurs.ToListAsync();
-                return formateurs ?? new List<Formateur>(); // Retourne une liste vide si null
+                return formateurs ?? []; // Retourne une liste vide si null
             }
             catch (Exception ex)
             {
                 // Log de l'erreur et gestion des exceptions
                 Console.Error.WriteLine($"Erreur lors du chargement des formateurs : {ex.Message}");
-                return new List<Formateur>(); // Retourne une liste vide en cas d'erreur
+                return []; // Retourne une liste vide en cas d'erreur
             }
         }
 
@@ -478,15 +384,13 @@ namespace CarnApprenti
                 existingMatiere.FormateurId = matiere.FormateurId;
 
                 // Mettre à jour le formateur si nécessaire
-                if (matiere.FormateurId != null)
-                {
                     var formateur = await _context.Formateurs
                                                      .FirstOrDefaultAsync(f => f.Id == matiere.FormateurId);
                     if (formateur != null)
                     {
                         existingMatiere.Formateur = formateur;
                     }
-                }
+                
 
                 // Sauvegarder les changements dans la base de données
                 await _context.SaveChangesAsync();
@@ -521,20 +425,14 @@ namespace CarnApprenti
         }
 
         // Récupérer un formateur par ID
-        public async Task<Formateur> GetFormateurByIdAsync(ulong formateurId)
+        public async Task<Formateur?> GetFormateurByIdAsync(ulong formateurId)
         {
             try
             {
                 Console.WriteLine($"Récupération du formateur avec ID : {formateurId}");
                 var formateur = await _context.Formateurs
                     .Where(f => f.Id == formateurId)
-                    .FirstOrDefaultAsync();
-
-                if (formateur == null)
-                {
-                    throw new Exception($"Formateur avec l'ID {formateurId} non trouvé.");
-                }
-
+                    .FirstOrDefaultAsync() ?? throw new Exception($"Formateur avec l'ID {formateurId} non trouvé.");
                 return formateur;
             }
             catch (Exception ex)
@@ -548,7 +446,7 @@ namespace CarnApprenti
 
 
         // Récupérer une matière par ID
-        public async Task<Matiere> GetMatiereByIdAsync(ulong matiereId)
+        public async Task<Matiere?> GetMatiereByIdAsync(ulong matiereId)
         {
             try
             {
@@ -565,27 +463,7 @@ namespace CarnApprenti
             }
         }
 
-        public async Task<Formateur> GetFormateurByNameAsync(string nom, string prenom)
-        {
-            try
-            {
-                // Rechercher le formateur dans la base de données en utilisant son nom et prénom
-                var formateur = await _context.Formateurs
-                                              .Where(f => f.Nom.Equals(nom, StringComparison.OrdinalIgnoreCase) &&
-                                                          f.Prenom.Equals(prenom, StringComparison.OrdinalIgnoreCase))
-                                              .FirstOrDefaultAsync();
-
-                return formateur;
-            }
-            catch (Exception ex)
-            {
-                // Gérer les erreurs, par exemple, enregistrer dans un journal ou afficher un message
-                Console.WriteLine($"Erreur lors de la récupération du formateur : {ex.Message}");
-                return null;
-            }
-        }
-
-        public async Task<Matiere> GetMatiereByNameAndFormateurAsync(string nomMatiere, ulong formateurId)
+        public async Task<Matiere?> GetMatiereByNameAndFormateurAsync(string nomMatiere, ulong formateurId)
         {
             try
             {
@@ -630,7 +508,7 @@ namespace CarnApprenti
             try
             {
                 // Step 1: Retrieve all assigned roles with the role name "referent"
-                var apprenantIds = await _context.AssignedRoles
+                List<ulong>? apprenantIds = await _context.AssignedRoles
                     .Include(ar => ar.Role)  // Include the related Role entity
                     .Where(ar => ar.Role.Name == "apprenant")
                     .Select(ar => ar.EntityId)  // Select the IDs of users with the "apprenant" role
@@ -650,7 +528,7 @@ namespace CarnApprenti
             }
         }
 
-        public async Task<List<User>> GetApprenantsForTuteurAsync(ulong tuteurId)
+        public async Task<List<User?>> GetApprenantsForTuteurAsync(ulong tuteurId)
         {
             try
             {
@@ -668,7 +546,7 @@ namespace CarnApprenti
             }
         }
 
-        public async Task<Livret> GetLivretByIdAsync(ulong livretId)
+        public async Task<Livret?> GetLivretByIdAsync(ulong livretId)
         {
             return await _context.Livrets
                 .FirstOrDefaultAsync(l => l.Id == livretId);
@@ -680,11 +558,11 @@ namespace CarnApprenti
             await _context.SaveChangesAsync();
         }
 
-        public async Task<List<string>> GetPeriodesAsync(ulong livretId)
+        public async Task<List<string?>> GetPeriodesAsync(ulong livretId)
         {
             try
             {
-                var periodes = new List<string>();
+                List<string?> periodes = [];
 
                 // Récupérer les comptes rendus pour le livret donné
                 var comptesRendus = await _context.CompteRendus
@@ -706,12 +584,12 @@ namespace CarnApprenti
             catch (Exception ex)
             {
                 Console.WriteLine($"Erreur lors de la récupération des périodes : {ex.Message}");
-                return new List<string>(); // Retourner une liste vide en cas d'erreur
+                return []; // Retourner une liste vide en cas d'erreur
             }
         }
 
 
-        public async Task<CompteRendu> GetCompteRenduAsync(ulong livretId, string periode)
+        public async Task<CompteRendu?> GetCompteRenduAsync(ulong livretId, string periode)
         {
             try
             {
@@ -792,7 +670,7 @@ namespace CarnApprenti
             }
         }
 
-        public async Task AddMatiereToGroupeAsync(ulong groupeId, ulong matiereId)
+        public async Task AddMatiereToGroupeAsync(ulong groupeId, ulong? matiereId)
         {
             // Vérifiez si une entrée pour ce groupe, matière et formateur existe déjà
             var existingRelation = await _context.GroupeMatieres
@@ -808,7 +686,7 @@ namespace CarnApprenti
             var newRelation = new GroupeMatiere
             {
                 GroupeId = groupeId,
-                MatiereId = matiereId,
+                MatiereId = (ulong)matiereId,
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now,
             };
@@ -820,7 +698,7 @@ namespace CarnApprenti
             await _context.SaveChangesAsync();
         }
 
-        public async Task<List<Matiere>> GetMatieresForGroupeAsync(ulong groupeId)
+        public async Task<List<Matiere?>> GetMatieresForGroupeAsync(ulong groupeId)
         {
             try
             {
@@ -899,12 +777,13 @@ namespace CarnApprenti
             }
         }
 
+        public ILogger Get_logger()
+        {
+            return _logger;
+        }
+
         public async Task AddPersonnelSiteAsync(ulong personnel_id, ulong site_id)
         {
-            try
-            {
-                _logger.LogInformation($"Tentative d'ajout personnel_site: {personnel_id}-{site_id}");
-
                 var personnelsite = new PersonnelSite
                 {
                     PersonnelId = personnel_id,
@@ -913,14 +792,6 @@ namespace CarnApprenti
 
                 _context.PersonnelSites.Add(personnelsite);
                 await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Relation ajoutée avec succès");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Erreur lors de l'ajout personnel_site: {ex}");
-                throw;
-            }
         }
 
         public async Task ClearPersonnelSitesAsync(ulong personnelId)
@@ -936,7 +807,7 @@ namespace CarnApprenti
         }
 
 
-        public async Task<Personnel> GetPersonnelByIdAsync(ulong personnelId)
+        public async Task<Personnel?> GetPersonnelByIdAsync(ulong personnelId)
         {
             try
             {
@@ -945,12 +816,7 @@ namespace CarnApprenti
                     .Where(p => p.Id == personnelId)
                     .FirstOrDefaultAsync();
 
-                if (personnel == null)
-                {
-                    throw new Exception("Personnel not found.");
-                }
-
-                return personnel;
+                return personnel ?? throw new Exception("Personnel not found.");
             }
             catch (Exception ex)
             {
@@ -966,12 +832,7 @@ namespace CarnApprenti
                 // Fetch the personnel record from the database by ID
                 var existingPersonnel = await _context.Personnels
                     .Where(p => p.Id == personnel.Id)
-                    .FirstOrDefaultAsync();
-
-                if (existingPersonnel == null)
-                {
-                    throw new Exception("Personnel not found.");
-                }
+                    .FirstOrDefaultAsync() ?? throw new Exception("Personnel not found.");
 
                 // Update the properties of the existing personnel
                 existingPersonnel.Nom = personnel.Nom;
@@ -1008,12 +869,7 @@ namespace CarnApprenti
         {
             try
             {
-                var site = await _context.Sites.FindAsync(siteId);
-                if (site == null)
-                {
-                    throw new Exception("Site introuvable.");
-                }
-
+                var site = await _context.Sites.FindAsync(siteId) ?? throw new Exception("Site introuvable.");
                 _context.Sites.Remove(site);
                 await _context.SaveChangesAsync();
             }
@@ -1044,13 +900,7 @@ namespace CarnApprenti
             try
             {
                 // Rechercher le site par son ID
-                var site = await _context.Sites.FindAsync(siteId);
-
-                if (site == null)
-                {
-                    throw new Exception($"Aucun site trouvé avec l'ID {siteId}");
-                }
-
+                var site = await _context.Sites.FindAsync(siteId) ?? throw new Exception($"Aucun site trouvé avec l'ID {siteId}");
                 return site;
             }
             catch (Exception ex)
@@ -1064,12 +914,7 @@ namespace CarnApprenti
             try
             {
                 // Vérifier si le site existe dans la base de données
-                var existingSite = await _context.Sites.FindAsync(updatedSite.Id);
-
-                if (existingSite == null)
-                {
-                    throw new Exception($"Aucun site trouvé avec l'ID {updatedSite.Id}");
-                }
+                var existingSite = await _context.Sites.FindAsync(updatedSite.Id) ?? throw new Exception($"Aucun site trouvé avec l'ID {updatedSite.Id}");
 
                 // Mettre à jour les propriétés nécessaires
                 existingSite.Nom = updatedSite.Nom;
@@ -1100,18 +945,36 @@ namespace CarnApprenti
             }
         }
 
-        public async Task DeleteModeleAsync(ulong modeleId)
+        public async Task DeleteModeleAsync(ulong? modeleId)
         {
             try
             {
-                var modele = await _context.Modeles.FindAsync(modeleId);
-
-                if (modele == null)
+                var modele = await _context.Modeles.FindAsync(modeleId) ?? throw new Exception($"Modèle avec l'ID {modeleId} non trouvé.");
+                _context.Modeles.Remove(modele);
+                var compositions = await _context.Compositions
+                    .Where(c => c.ModeleId == modeleId)
+                    .ToListAsync();
+                foreach (Composition composition in compositions)
                 {
-                    throw new Exception($"Modèle avec l'ID {modeleId} non trouvé.");
+                    if (composition.Lien != null)
+                    {
+                        // Construire le chemin absolu du fichier PDF
+                        var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+                        var projectRoot = Path.Combine(baseDirectory, "..", "..", "..", "..", "..", "wwwroot");
+                        var wwwrootPath = Path.GetFullPath(projectRoot);
+                        var pdfPath = Path.Combine(wwwrootPath, composition.Lien);
+
+                        // Vérifier si le fichier existe et le supprimer
+                        if (File.Exists(pdfPath))
+                        {
+                            File.Delete(pdfPath);
+                        }
+                    }
+
+                    // Supprimer la composition de la base de données
+                    _context.Compositions.Remove(composition);
                 }
 
-                _context.Modeles.Remove(modele);
                 await _context.SaveChangesAsync();
             }
             catch (Exception ex)
@@ -1121,7 +984,7 @@ namespace CarnApprenti
             }
         }
 
-        public async Task<Modele> GetModeleByIdAsync(ulong id)
+        public async Task<Modele?> GetModeleByIdAsync(ulong id)
         {
             try
             {
@@ -1163,21 +1026,6 @@ namespace CarnApprenti
             }
         }
 
-        public async Task<List<Composition>> GetCompositionsAsync()
-        {
-            return await _context.Compositions.ToListAsync();
-        }
-
-        public async Task DeleteCompositionAsync(ulong compositionId)
-        {
-            var composition = await _context.Compositions.FindAsync(compositionId);
-            if (composition != null)
-            {
-                _context.Compositions.Remove(composition);
-                await _context.SaveChangesAsync();
-            }
-        }
-
         public async Task<int> AddModeleAsync(Modele modele)
         {
             modele.CreatedAt = DateTime.UtcNow;
@@ -1213,11 +1061,7 @@ namespace CarnApprenti
         {
             try
             {
-                var existingComposition = await _context.Compositions.FindAsync(updatedComposition.Id);
-                if (existingComposition == null)
-                {
-                    throw new InvalidOperationException($"Composition with ID {updatedComposition.Id} not found");
-                }
+                var existingComposition = await _context.Compositions.FindAsync(updatedComposition.Id) ?? throw new InvalidOperationException($"Composition with ID {updatedComposition.Id} not found");
 
                 // Update fields
                 existingComposition.Nom = updatedComposition.Nom;

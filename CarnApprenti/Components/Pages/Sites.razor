@@ -3,54 +3,68 @@
 @inject NavigationManager Navigation
 @inject DatabaseService DatabaseService
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
-@inject IJSRuntime js
+@using CarnApprenti.Components.Layout
 
-<button class="retour-link bouton btn btn-secondary" @onclick="GoBack">Retour</button>
-<h1 class="text-center mt-4">Gestion des sites</h1>
-
-<div class="container_bouton">
-    <a href="add_site" class="btn btn-primary">Ajout de site</a>
+<div class="sidebar">
+    <NavMenu />
 </div>
 
-@if (sites == null)
-{
-    <p>Chargement des sites...</p>
-    <p class="text-danger">@errorMessage</p>
-}
-else if (sites.Count == 0)
-{
-    <p>Aucun site trouvé.</p>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered">
-            <thead class="table-dark">
-                <tr class="text-center">
-                    <th>Nom</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody class="text-white">
-                @foreach (var site in sites)
-                {
-                    <tr class="text-center">
-                        <td>@site.Nom</td>
-                        <td>
-                            <a href="edit_site/@site.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
-                            <button class="btn btn-danger btn-sm m-2" @onclick="() => DeleteSite(site.Id)">Supprimer</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+<div style="margin-left:250px">
+
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+    <h1 class="text-center mt-4">Gestion des sites</h1>
+
+    <div class="container_bouton">
+        <a href="add_site" class="btn btn-primary">Ajout de site</a>
     </div>
-}
+
+    @if (sites == null)
+    {
+        <p>Chargement des sites...</p>
+        <p class="text-danger">@errorMessage</p>
+    }
+    else if (sites.Count == 0)
+    {
+        <p>Aucun site trouvé.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark">
+                    <tr class="text-center">
+                        <th>Nom</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-white">
+                    @foreach (var site in sites)
+                    {
+                        <tr class="text-center">
+                            <td>@site.Nom</td>
+                            <td>
+                                <a href="edit_site/@site.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
+                                <button class="btn btn-danger btn-sm m-2" @onclick="() => ConfirmDelete(site.Id)">Supprimer</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<ConfirmationModal @ref="confirmationModal"
+                   Title="Confirmation"
+                   Message="Êtes-vous sûr de vouloir supprimer ce site ?"
+                   OnClose="OnModalClose" />
 
 @code {
     private List<LivretApprentissageContext.Site>? sites;
     private ulong? currentUserId;
-    private string errorMessage;
+    private string? errorMessage;
+    private ConfirmationModal? confirmationModal;
+    private ulong? siteIdToDelete;
 
     protected override async Task OnInitializedAsync()
     {
@@ -80,14 +94,19 @@ else
         }
     }
 
-    private async Task DeleteSite(ulong siteId)
+    private void ConfirmDelete(ulong siteId)
     {
-        var confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer ce site ?");
-        if (confirmed)
+        siteIdToDelete = siteId;
+        confirmationModal?.Show();
+    }
+
+    private async Task OnModalClose(bool confirmed)
+    {
+        if (confirmed && siteIdToDelete.HasValue)
         {
             try
             {
-                await DatabaseService.DeleteSiteAsync(siteId);
+                await DatabaseService.DeleteSiteAsync(siteIdToDelete.Value);
                 sites = await DatabaseService.GetSitesAsync(); // Recharger la liste après suppression
             }
             catch (Exception ex)
@@ -95,6 +114,8 @@ else
                 errorMessage = $"Une erreur s'est produite lors de la suppression du site : {ex.Message}";
             }
         }
+        siteIdToDelete = null;
+        confirmationModal?.Hide();
     }
 
     private void GoBack()

@@ -2,98 +2,100 @@
 @using static CarnApprenti.LivretApprentissageContext
 @inject NavigationManager Navigation
 @inject DatabaseService DatabaseService
-@inject IJSRuntime js
+@using CarnApprenti.Components.Layout
 
-<button @onclick="GoBack" class="retour-link bouton btn btn-secondary">Retour</button>
-<h1 class="text-center mt-4">Gestion des groupes</h1>
+<ConfirmationModal @ref="confirmationModal"
+                   Title="Confirmation de suppression"
+                   Message="Êtes-vous sûr de vouloir supprimer ce groupe ?"
+                   OnClose="OnModalClose" />
 
-<div class="container_bouton">
-    <a href="add_groupes" class="btn btn-primary">Ajouter un groupe</a>
+<div class="sidebar">
+    <NavMenu />
 </div>
 
-@if (groupes == null)
-{
-    <p class="alert alert-info">Chargement des groupes...</p>
-}
-else if (!groupes.Any())
-{
-    <p class="alert alert-warning">Aucun groupe trouvé.</p>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table table-bordered table-striped">
-            <thead class="table-dark">
-                <tr class="text-center">
-                    <th>Groupe</th>
-                    <th>Référent</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody class="text-white">
-                @foreach (var groupe in groupes)
-                {
-                    <tr class="text-center">
-                        <td>@groupe.Nom</td>
-                        <td>@(groupe.Referent != null ? groupe.Referent.Nom + " " + groupe.Referent.Prenom : "Aucun référent")</td>
-                        <td>
-                            <a class="btn btn-warning btn-sm m-2" href="edit_groupes/@groupe.Id">Modifier</a>
-                            <button class="btn btn-danger btn-sm m-2" @onclick="() => ConfirmDelete(groupe.Id)">Supprimer</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+<div style="margin-left:250px">
+
+
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+    <h1 class="text-center mt-4">Gestion des groupes</h1>
+
+    <div class="container_bouton">
+        <a href="add_groupes" class="btn btn-primary">Ajouter un groupe</a>
     </div>
-}
+
+    @if (groupes == null)
+    {
+        <p class="alert alert-info">Chargement des groupes...</p>
+    } else if (!groupes.Any())
+        {
+        <p class="alert alert-warning">Aucun groupe trouvé.</p>
+        } else
+            {
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-dark">
+                            <tr class="text-center">
+                                <th>Groupe</th>
+                                <th>Référent</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-white">
+                            @foreach (var groupe in groupes)
+                            {
+                                <tr class="text-center">
+                                    <td>@groupe.Nom</td>
+                                    <td>@(groupe.Referent != null ? groupe.Referent.Nom + " " + groupe.Referent.Prenom : "Aucun référent")</td>
+                                    <td>
+                                        <a class="btn btn-warning btn-sm m-2" href="edit_groupes/@groupe.Id">Modifier</a>
+                                        <button class="btn btn-danger btn-sm m-2" @onclick="() => ConfirmDelete(groupe.Id)">Supprimer</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+</div>
 
 @code {
     private List<GroupeWithReferent>? groupes;
+    private ulong? groupToDeleteId;
+    private ConfirmationModal? confirmationModal;
+
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
             groupes = await DatabaseService.GetGroupesWithReferentAsync();
-        }
-        catch (Exception ex)
-        {
-            await js.InvokeVoidAsync("alert", $"Erreur de chargement des groupes : {ex.Message}");
-        }
+        
     }
 
     private async Task LoadGroupes()
     {
-        try
-        {
             groupes = await DatabaseService.GetGroupesWithReferentAsync();
-        }
-        catch (Exception ex)
-        {
-            await js.InvokeVoidAsync("alert", $"Erreur de chargement des groupes : {ex.Message}");
-        }
+        
     }
 
-    private async Task ConfirmDelete(ulong idGroupe)
+    private void ConfirmDelete(ulong idGroupe)
     {
-        bool confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer ce groupe ?");
-        if (confirmed)
+        groupToDeleteId = idGroupe;
+        confirmationModal?.Show(); // Affiche le modal
+    }
+
+    private async Task OnModalClose(bool confirmed)
+    {
+        if (confirmed && groupToDeleteId.HasValue)
         {
-            await DeleteGroupe(idGroupe);
+            await DeleteGroupe(groupToDeleteId.Value);
         }
+        groupToDeleteId = null; // Réinitialiser l'ID du groupe à supprimer
+        confirmationModal?.Hide();
     }
 
     private async Task DeleteGroupe(ulong idGroupe)
     {
-        try
-        {
             await DatabaseService.DeleteGroupeAsync(idGroupe);
             await LoadGroupes(); // Recharger la liste après suppression
-        }
-        catch (Exception ex)
-        {
-            await js.InvokeVoidAsync("alert", $"Erreur lors de la suppression du groupe : {ex.Message}");
-        }
     }
 
     private void GoBack()

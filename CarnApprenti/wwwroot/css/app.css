@@ -81,7 +81,7 @@ h1:focus {
         z-index: 1;
     }
 
-    .flex-column, .navbar-brand {
+    .flex-column {
         padding-left: env(safe-area-inset-left);
     }
 }
@@ -249,7 +249,6 @@ header {
     background: transparent;
     border-top-right-radius: 20px;
     box-shadow: 1px -10px 0 0 var(--clr);
-    rotate: 180deg;
 }
 
 .indicator::after {
@@ -262,7 +261,6 @@ header {
     background: transparent;
     border-top-left-radius: 20px;
     box-shadow: -1px -10px 0 0 var(--clr);
-    rotate: -180deg;
 }
 
 /* Indicator Transitions */
@@ -644,8 +642,9 @@ header {
     bottom: 0;
     left: 0;
     z-index: 100;
-    padding: 48px 0 0;
     box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+    width: 250px;
+    background-color: rgba(0, 0, 0, 0.2);
 }
 
 .sidebar-sticky {
@@ -658,12 +657,8 @@ header {
     overflow-y: auto;
 }
 .nav-link {
-    color: #333 !important;
+    color: black;
     font-weight: 500;
-}
-
-.nav-link:hover {
-    color: #007bff !important;
 }
 
 .compte_rendu_container {

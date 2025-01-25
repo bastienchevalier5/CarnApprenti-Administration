@@ -1,101 +1,108 @@
 ﻿@page "/users"
+@using CarnApprenti.Components.Layout
 @using static CarnApprenti.LivretApprentissageContext
 @inject NavigationManager Navigation
 @inject DatabaseService DatabaseService
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
-@inject IJSRuntime js
 
-<button class="retour-link bouton btn btn-secondary" @onclick="GoBack">Retour</button>
-<h1 class="text-center mt-4">Gestion des utilisateurs</h1>
+<div class="sidebar">
+    <NavMenu />
+</div>
+<div style="margin-left:250px">
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+    <h1 class="text-center mt-4">Gestion des utilisateurs</h1>
 
-<div class="container my-4">
-    <div class="d-flex justify-content-between">
-        <a href="add_user" class="btn btn-primary">Création d'utilisateur</a>
-        <a href="import_apprenants" class="btn btn-info">Importer des apprenants</a>
+    <div class="container my-4">
+        <div class="d-flex justify-content-between">
+            <a href="add_user" class="btn btn-primary">Création d'utilisateur</a>
+            <a href="import_apprenants" class="btn btn-info">Importer des apprenants</a>
+        </div>
     </div>
+
+    @if (users == null)
+    {
+        <p>Chargement des utilisateurs...</p>
+        <p class="text-danger">@errorMessage</p>
+    }
+    else if (users.Count == 0)
+    {
+        <p>Aucun utilisateur trouvé.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark">
+                    <tr class="text-center">
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Mail</th>
+                        <th>Role</th>
+                        <th>Groupe</th>
+                        <th>Apprenants Associés</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-white">
+                    @foreach (var user in users)
+                    {
+                        var roles = userRoles.ContainsKey(user.Id) ? userRoles[user.Id] : new List<string> { "Aucun rôle" };
+                        var apprenantsAssocies = userRoles.ContainsKey(user.Id) && roles.Contains("tuteur")
+                        ? apprenants[user.Id]?.Select(apprenant => $"{apprenant.Nom} {apprenant.Prenom}").ToList()
+                        : new List<string> { "Aucun apprenant" };
+
+                        <tr class="text-center">
+                            <td>@user.Nom</td>
+                            <td>@user.Prenom</td>
+                            <td>@user.Email</td>
+                            <td>
+                                @foreach (var role in roles)
+                                {
+                                    <span>@role</span>
+                                    <br />
+                                }
+                            </td>
+                            <td>@(user.Groupe != null ? user.Groupe.Nom : "Aucun groupe")</td>
+                            <td>
+                                @foreach (var apprenant in apprenantsAssocies)
+                                {
+                                    <span>@apprenant</span>
+                                    <br />
+                                }
+                            </td>
+                            <td>
+                                @if (user.Id != currentUserId)
+                                {
+                                    <a href="edit_user/@user.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
+                                    <button class="btn btn-danger btn-sm m-2" @onclick="() => ConfirmDelete(user.Id)">Supprimer</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 </div>
 
-@if (users == null)
-{
-    <p>Chargement des utilisateurs...</p>
-    <p class="text-danger">@errorMessage</p>
-}
-else if (users.Count == 0)
-{
-    <p>Aucun utilisateur trouvé.</p>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered">
-            <thead class="table-dark">
-                <tr class="text-center">
-                    <th>Nom</th>
-                    <th>Prénom</th>
-                    <th>Mail</th>
-                    <th>Role</th>
-                    <th>Groupe</th>
-                    <th>Apprenants Associés</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody class="text-white">
-                <!-- Applique le texte blanc à tout le corps du tableau -->
-                @foreach (var user in users)
-                {
-                    var roles = userRoles.ContainsKey(user.Id) ? userRoles[user.Id] : new List<string> { "Aucun rôle" };
-                    var apprenantsAssocies = userRoles.ContainsKey(user.Id) && roles.Contains("tuteur")
-                    ? apprenants[user.Id]?.Select(apprenant => $"{apprenant.Nom} {apprenant.Prenom}").ToList()
-                    : new List<string> { "Aucun apprenant" };
-
-                    <tr class="text-center">
-                        <td>@user.Nom</td>
-                        <td>@user.Prenom</td>
-                        <td>@user.Email</td>
-                        <td>
-                            @foreach (var role in roles)
-                            {
-                                <span>@role</span>
-                                <br />
-                            }
-                        </td>
-                        <td>@(user.Groupe != null ? user.Groupe.Nom : "Aucun groupe")</td>
-                        <td>
-                            @foreach (var apprenant in apprenantsAssocies)
-                            {
-                                <span>@apprenant</span>
-                                <br />
-                            }
-                        </td>
-                        <td>
-                            @if (user.Id != currentUserId)
-                            {
-                                <a href="edit_user/@user.Id" class="btn btn-warning btn-sm m-2">Modifier</a> <!-- Ajout de "me-2" pour espacer les boutons -->
-                            }
-                            @if (user.Id != currentUserId)
-                            {
-                                <button class="btn btn-danger btn-sm m-2" @onclick="() => DeleteUser(user.Id)">Supprimer</button> <!-- Espacement également pour ce bouton -->
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
+<ConfirmationModal @ref="confirmationModal"
+                   Title="Confirmation"
+                   Message="Êtes-vous sûr de vouloir supprimer cet utilisateur ?"
+                   OnClose="OnModalClose" />
 
 @code {
     private List<LivretApprentissageContext.User>? users;
     private ulong? currentUserId;
-    private string errorMessage;
-    private Dictionary<ulong, List<string>> userRoles = new Dictionary<ulong, List<string>>(); // Dictionnaire global
-    private Dictionary<ulong, List<User>> apprenants = new Dictionary<ulong, List<User>>(); // Pour stocker les apprenants associés
+    private string? errorMessage;
+    private Dictionary<ulong, List<string>> userRoles = new Dictionary<ulong, List<string>>();
+    private Dictionary<ulong, List<User?>> apprenants = new Dictionary<ulong, List<User?>>();
+    private ConfirmationModal? confirmationModal;
+    private ulong? userIdToDelete;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            // Vérification de session
             currentUserId = await SessionStorage.GetItemAsync<ulong?>("Id");
 
             if (currentUserId == null)
@@ -104,54 +111,57 @@ else
                 return;
             }
 
-            // Chargement des utilisateurs
-            users = await DatabaseService.GetUsersAsync();  // Récupérer les utilisateurs
+            users = await DatabaseService.GetUsersAsync();
             if (users == null)
             {
                 errorMessage = "Aucun utilisateur trouvé.";
                 return;
             }
 
-            // Chargement des rôles des utilisateurs
             foreach (var user in users)
             {
-                var role = await DatabaseService.GetUserRolesAsync(user.Id);  // Récupère un rôle par utilisateur
-                userRoles[user.Id] = new List<string> { role };  // Enregistrer le rôle de l'utilisateur dans le dictionnaire
+                var role = await DatabaseService.GetUserRolesAsync(user.Id);
+                userRoles[user.Id] = new List<string> { role != null ? role : "" };
 
-                // Si l'utilisateur est un tuteur, récupérer ses apprenants associés
                 if (role == "tuteur")
                 {
                     var apprenantsAssocies = await DatabaseService.GetApprenantsForTuteurAsync(user.Id);
-                    apprenants[user.Id] = apprenantsAssocies; // Stocker les apprenants associés
+                    apprenants[user.Id] = apprenantsAssocies;
                 }
             }
         }
         catch (Exception ex)
         {
-            // Gestion des erreurs
             errorMessage = $"Une erreur s'est produite lors du chargement des utilisateurs : {ex.Message}";
         }
     }
 
-    private async Task DeleteUser(ulong userId)
+    private void ConfirmDelete(ulong userId)
     {
-        var confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer cet utilisateur ?");
-        if (confirmed)
+        userIdToDelete = userId;
+        confirmationModal?.Show();
+    }
+
+    private async Task OnModalClose(bool confirmed)
+    {
+        if (confirmed && userIdToDelete.HasValue)
         {
             try
             {
-                await DatabaseService.DeleteUserAsync(userId);
-                users = await DatabaseService.GetUsersAsync(); // Recharger la liste après suppression
+                await DatabaseService.DeleteUserAsync(userIdToDelete.Value);
+                users = await DatabaseService.GetUsersAsync();
             }
             catch (Exception ex)
             {
                 errorMessage = $"Une erreur s'est produite lors de la suppression de l'utilisateur : {ex.Message}";
             }
         }
+        userIdToDelete = null;
+        confirmationModal?.Hide();
     }
 
     private void GoBack()
     {
-        Navigation.NavigateTo("/"); // Retour à la page précédente
+        Navigation.NavigateTo("/");
     }
 }

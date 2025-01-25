@@ -5,67 +5,81 @@
 @inject NavigationManager Navigation
 @inject ModeleService ModeleService
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@using CarnApprenti.Components.Layout
 @inject IJSRuntime js
 
-<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
 
-<h1 class="text-center m-4">Gestion des Modèles</h1>
+<ConfirmationModal @ref="confirmationModal"
+                   Title="Confirmation"
+                   Message="Êtes-vous sûr de vouloir supprimer ce modèle ?"
+                   OnClose="OnModalClose" />
 
-@if (isLoading)
-{
-    <div class="text-center">
-        <h2>Chargement en cours...</h2>
-    </div>
-}
-else
-{
-    <div class="container_bouton">
-        <a class="btn btn-primary" href="add_modele">Ajouter un modèle</a>
-    </div>
+<div class="sidebar">
+    <NavMenu />
+</div>
 
-    @if (modeles != null && modeles.Count > 0)
+<div style="margin-left:250px">
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+
+    <h1 class="text-center m-4">Gestion des Modèles</h1>
+
+    @if (isLoading)
     {
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead class="table-dark">
-                    <tr class="text-center">
-                        <th>Nom</th>
-                        <th>Groupe</th>
-                        <th>Site</th>
-                        <th>PDF</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="text-white">
-                    @foreach (var modele in modeles)
-                    {
-                        <tr class="text-center">
-                            <td>@modele.Nom</td>
-                            <td>@modele.Groupe.Nom</td>
-                            <td>@modele.Site.Nom</td>                            
-                            <td>
-                                <button class="btn btn-info btn-sm" @onclick="() => DownloadPdf(modele.Id)">Télécharger le PDF</button>
-                            </td>
-                            <td>
-                                <a class="btn btn-warning btn-sm m-2" href="edit_modele/@modele.Id">Modifier</a>
-                                <button class="btn btn-danger btn-sm m-2" @onclick="() => DeleteModele(modele.Id)">Supprimer</button>
-                            </td>
-                        </tr>
-                        
-                    }
-                </tbody>
-            </table>
+        <div class="text-center">
+            <h2>Chargement en cours...</h2>
         </div>
     }
     else
     {
-        <p class="text-center alert alert-warning">Aucun modèle disponible.</p>
+        <div class="container_bouton">
+            <a class="btn btn-primary" href="add_modele">Ajouter un modèle</a>
+        </div>
+
+        @if (modeles != null && modeles.Count > 0)
+        {
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                        <tr class="text-center">
+                            <th>Nom</th>
+                            <th>Groupe</th>
+                            <th>Site</th>
+                            <th>PDF</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-white">
+                        @foreach (var modele in modeles)
+                        {
+                            <tr class="text-center">
+                                <td>@modele.Nom</td>
+                                <td>@modele.Groupe?.Nom</td>
+                                <td>@modele.Site?.Nom</td>
+                                <td>
+                                    <button class="btn btn-info btn-sm" @onclick="() => DownloadPdf(modele.Id)">Télécharger le PDF</button>
+                                </td>
+                                <td>
+                                    <a class="btn btn-warning btn-sm m-2" href="edit_modele/@modele.Id">Modifier</a>
+                                    <button class="btn btn-danger btn-sm m-2" @onclick="() => ShowDeleteConfirmation(modele.Id)">Supprimer</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="text-center alert alert-warning">Aucun modèle disponible.</p>
+        }
     }
-}
+</div>
 
 @code {
     private bool isLoading = true;
     private List<Modele> modeles = new List<Modele>();
+    private ConfirmationModal? confirmationModal;
+    private ulong? modeleToDelete;
 
     protected override async Task OnInitializedAsync()
     {
@@ -83,21 +97,32 @@ else
         isLoading = false;
     }
 
-    private async Task DeleteModele(ulong modeleId)
+    private void ShowDeleteConfirmation(ulong modeleId)
     {
-        // Confirmation avant de supprimer
-        bool confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer ce modèle ?");
-        if (confirmed)
+        modeleToDelete = modeleId;
+        confirmationModal?.Show();
+    }
+
+    private async Task OnModalClose(bool confirmed)
+    {
+        if (confirmed && modeleToDelete.HasValue)
         {
-            try
-            {
-                await DatabaseService.DeleteModeleAsync(modeleId);
-                modeles = await DatabaseService.GetModelesAsync(); // Recharger les modèles après suppression
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Erreur lors de la suppression du modèle : {ex.Message}");
-            }
+            await DeleteModele(modeleToDelete.Value);
+        }
+        modeleToDelete = null;
+        confirmationModal?.Hide();
+    }
+
+    private async Task DeleteModele(ulong? modeleId)
+    {
+        try
+        {
+            await DatabaseService.DeleteModeleAsync(modeleId);
+            modeles = await DatabaseService.GetModelesAsync(); // Recharger les modèles après suppression
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur lors de la suppression du modèle : {ex.Message}");
         }
     }
 

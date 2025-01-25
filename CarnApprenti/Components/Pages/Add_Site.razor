@@ -4,45 +4,57 @@
 @inject DatabaseService DatabaseService
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
 @inject IJSRuntime js
+@using CarnApprenti.Components.Layout
 
-<!-- Retour au lien -->
-<button class="retour-link bouton btn btn-secondary mb-3" @onclick="GoBack">Retour</button>
-
-<h1 class="text-center mb-4">Ajouter un site</h1>
-
-@if (errorMessage != null)
-{
-    <div class="alert alert-danger" role="alert">
-        @errorMessage
-    </div>
-}
-
-<div class="container">
-    <div class="form-container">
-        <EditForm Model="@newSite" OnValidSubmit="HandleValidSubmit">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-
-            <!-- Champs Nom -->
-            <div class="form-group mb-3">
-                <label for="Nom" class="form-label">Nom</label>
-                <InputText id="Nom" class="form-control" @bind-Value="newSite.Nom" />
-            </div>
-
-            <!-- Bouton de soumission -->
-            <button type="submit" class="btn btn-primary w-100">Ajouter</button>
-        </EditForm>
-    </div>
+<div class="sidebar">
+    <NavMenu />
 </div>
 
+<div style="margin-left:250px">
+
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+
+    <h1 class="text-center mb-4">Ajouter un site</h1>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
+
+    <div class="container">
+        <div class="form-container">
+            <EditForm Model="@newSite" class="text-center" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <!-- Champs Nom -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Nom" class="form-label">Nom</label>
+                    <InputText id="Nom" class="form-control" @bind-Value="newSite.Nom" />
+                </div>
+
+                <!-- Bouton de soumission -->
+                <button type="submit" class="btn btn-primary mb-3">Ajouter</button>
+            </EditForm>
+        </div>
+    </div>
+</div>
 @code {
     private Site newSite = new Site();
-    private string errorMessage;
+    private string? errorMessage;
 
     private async Task HandleValidSubmit()
     {
         try
         {
+            if (string.IsNullOrEmpty(newSite.Nom))
+            {
+                errorMessage = "Veuillez entrer un nom.";
+                return;
+            }
+
             // Set timestamps
             newSite.CreatedAt = DateTime.UtcNow;
             newSite.UpdatedAt = DateTime.UtcNow;

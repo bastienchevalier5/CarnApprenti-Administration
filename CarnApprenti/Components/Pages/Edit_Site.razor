@@ -4,41 +4,47 @@
 @inject DatabaseService DatabaseService
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
 @inject IJSRuntime js
+@using CarnApprenti.Components.Layout
 
-<h1 class="text-center mb-4">Modifier un site</h1>
-
-@if (errorMessage != null)
-{
-    <div class="alert alert-danger" role="alert">
-        @errorMessage
-    </div>
-}
-
-<div class="container">
-    <div class="form-container">
-        <EditForm Model="@site" OnValidSubmit="HandleValidSubmit">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-
-            <!-- Champs Nom -->
-            <div class="form-group mb-3">
-                <label for="Nom" class="form-label">Nom</label>
-                <InputText id="Nom" class="form-control" @bind-Value="site.Nom" />
-            </div>
-
-            <!-- Bouton de soumission -->
-            <button type="submit" class="btn btn-primary w-100">Modifier</button>
-        </EditForm>
-    </div>
+<div class="sidebar">
+    <NavMenu />
 </div>
 
-<!-- Retour au lien -->
-<button class="retour-link bouton btn btn-secondary mb-3" @onclick="GoBack">Retour</button>
+<div style="margin-left:250px">
 
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+
+    <h1 class="text-center mb-4">Modifier un site</h1>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
+
+    <div class="container">
+        <div class="form-container">
+            <EditForm Model="@site" class="text-center" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <!-- Champs Nom -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Nom" class="form-label">Nom</label>
+                    <InputText id="Nom" class="form-control" @bind-Value="site.Nom" />
+                </div>
+
+                <!-- Bouton de soumission -->
+                <button type="submit" class="btn btn-primary mb-3">Modifier</button>
+            </EditForm>
+        </div>
+    </div>
+</div>
 @code {
-    [Parameter] public string siteId { get; set; }
+    [Parameter] public string? siteId { get; set; }
     private Site site = new Site();
-    private string errorMessage;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -57,6 +63,12 @@
     {
         try
         {
+            if (string.IsNullOrEmpty(site.Nom))
+            {
+                errorMessage = "Veuillez entrer un nom.";
+                return;
+            }
+
             // Mettre à jour les données du site
             await DatabaseService.UpdateSiteAsync(site);
 

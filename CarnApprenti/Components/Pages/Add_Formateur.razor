@@ -3,35 +3,62 @@
 @inject DatabaseService DatabaseService
 @inject NavigationManager Navigation
 @using static CarnApprenti.LivretApprentissageContext
+@using CarnApprenti.Components.Layout
 
-<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
+<div class="sidebar">
+    <NavMenu />
+</div>
 
-<h3 class="text-center mb-4">Ajouter un Formateur</h3>
+<div style="margin-left:250px">
 
-<EditForm Model="newFormateur" OnValidSubmit="HandleAddFormateur">
-    <DataAnnotationsValidator />
-    <ValidationSummary class="text-danger mb-3" />
 
-    <div class="mb-4">
-        <label for="nom" class="form-label">Nom</label>
-        <InputText id="nom" class="form-control" @bind-Value="newFormateur.Nom" placeholder="Entrez le nom du formateur" />
-    </div>
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
 
-    <div class="mb-4">
-        <label for="prenom" class="form-label">Prénom</label>
-        <InputText id="prenom" class="form-control" @bind-Value="newFormateur.Prenom" placeholder="Entrez le prénom du formateur" />
-    </div>
+    <h3 class="text-center mb-4">Ajouter un Formateur</h3>
 
-    <div class="d-flex justify-content-center mb-4">
-        <button type="submit" class="btn btn-primary btn-lg">Ajouter le Formateur</button>
-    </div>
-</EditForm>
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
 
+    <EditForm Model="newFormateur" class="text-center" OnValidSubmit="HandleAddFormateur">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger mb-3" />
+
+        <div class="form-group mb-3 w-50 mx-auto">
+            <label for="nom" class="form-label">Nom</label>
+            <InputText id="nom" class="form-control" @bind-Value="newFormateur.Nom" />
+        </div>
+
+        <div class="form-group mb-3 w-50 mx-auto">
+            <label for="prenom" class="form-label">Prénom</label>
+            <InputText id="prenom" class="form-control" @bind-Value="newFormateur.Prenom" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Ajouter</button>
+
+    </EditForm>
+</div>
 @code {
     private Formateur newFormateur = new Formateur();
+    private string? errorMessage;
 
     private async Task HandleAddFormateur()
     {
+        if (string.IsNullOrEmpty(newFormateur.Nom))
+        {
+            errorMessage = "Veuillez entrer un nom.";
+            return;
+        }
+
+        if (string.IsNullOrEmpty(newFormateur.Prenom))
+        {
+            errorMessage = "Veuillez entrer un prénom.";
+            return;
+        }
+
         await DatabaseService.AddFormateurAsync(newFormateur);
         Navigation.NavigateTo("/formateurs/matieres"); // Retour à la page principale des formateurs et matières
     }

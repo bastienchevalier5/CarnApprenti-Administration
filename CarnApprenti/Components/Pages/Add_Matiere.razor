@@ -3,44 +3,57 @@
 @using static CarnApprenti.LivretApprentissageContext
 @inject DatabaseService DatabaseService
 @inject NavigationManager Navigation
+@using CarnApprenti.Components.Layout
 
-<button class="btn btn-secondary" @onclick="GoBack">Retour</button>
+<div class="sidebar">
+    <NavMenu />
+</div>
 
-<h3 class="text-center mb-4">Ajouter une matière</h3>
+<div style="margin-left:250px">
 
-<EditForm Model="newMatiere" OnValidSubmit="HandleAddMatiere">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-    <div class="mb-4">
-        <label for="matiereNom" class="form-label">Nom de la matière</label>
-        <InputText id="matiereNom" class="form-control" @bind-Value="newMatiere.Nom" />
-    </div>
-    <div class="mb-3">
-        <label for="formateurId" class="form-label">Formateur</label>
-        <InputSelect id="formateurId" class="form-control" @bind-Value="newMatiere.FormateurId">
-            <option value="">Sélectionnez un formateur</option>
-            @foreach (var formateur in formateurs)
-            {
-                <option value="@formateur.Id">@formateur.Nom @formateur.Prenom</option>
-            }
-        </InputSelect>
 
-    </div>
-    <div class="d-flex justify-content-center mb-4">
-        <button type="submit" class="btn btn-primary btn-lg">Ajouter</button>
-    </div>
-</EditForm>
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
 
+    <h3 class="text-center mb-4">Ajouter une matière</h3>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
+
+    <EditForm Model="newMatiere" class="text-center" OnValidSubmit="HandleAddMatiere">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="form-group mb-3 w-50 mx-auto">
+            <label for="matiereNom" class="form-label">Nom de la matière</label>
+            <InputText id="matiereNom" class="form-control" @bind-Value="newMatiere.Nom" />
+        </div>
+        <div class="form-group mb-3 w-50 mx-auto">
+            <label for="formateurId" class="form-label">Formateur</label>
+            <InputSelect id="formateurId" class="form-control" @bind-Value="newMatiere.FormateurId">
+                <option value="">-- Sélectionnez un formateur --</option>
+
+                @foreach (var formateur in formateurs)
+                {
+                    <option value="@formateur.Id">@formateur.Nom @formateur.Prenom</option>
+                }
+            </InputSelect>
+
+        </div>
+        <button type="submit" class="btn btn-primary mb-3">Ajouter</button>
+
+    </EditForm>
+</div>
 @code {
     private Matiere newMatiere = new Matiere();
     private List<Formateur> formateurs = new List<Formateur>(); // Initialisation avec une liste vide
-    private bool isLoading;
-
+    private string? errorMessage;
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            isLoading = true;
             formateurs = await DatabaseService.GetFormateursAsync();
 
             // Vérifiez si la liste est nulle ou vide
@@ -55,10 +68,6 @@
             Console.WriteLine($"Erreur lors du chargement des formateurs : {ex.Message}");
             // Gérer l'erreur (par exemple, afficher un message d'erreur)
         }
-        finally
-        {
-            isLoading = false;
-        }
     }
 
 
@@ -67,10 +76,16 @@
     {
         try
         {
+            if (string.IsNullOrEmpty(newMatiere.Nom))
+            {
+                errorMessage = "Veuillez entrer un nom.";
+                return;
+            }
             if (newMatiere.FormateurId == 0)
             {
                 // Ajouter une vérification si un formateur est sélectionné
-                throw new Exception("Veuillez sélectionner un formateur.");
+                errorMessage = "Veuillez sélectionner un formateur.";
+                return;
             }
 
             await DatabaseService.AddMatiereAsync(newMatiere);

@@ -6,80 +6,99 @@
 @using static CarnApprenti.LivretApprentissageContext
 @inject ILogger<Add_Modele> Logger
 @inject IJSRuntime js
+@using CarnApprenti.Components.Layout
+
+<div class="sidebar">
+    <NavMenu />
+</div>
+
+<div style="margin-left:250px">
 
 
-<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
 
-<h1 class="text-center m-4">Création de Modèle</h1>
+    <h1 class="text-center m-4">Ajout de Modèle</h1>
 
-<EditForm Model="modele" OnValidSubmit="HandleSubmit">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
 
-    <!-- Nom du modèle -->
-    <div class="form-group">
-        <label for="nom">Nom du modèle :</label>
-        <InputText id="nom" class="form-control" @bind-Value="modele.Nom" />
-    </div>
+    <EditForm Model="modele" class="text-center" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
 
-    <!-- Sélectionner un groupe -->
-    <div class="form-group">
-        <label for="groupeId">Groupe :</label>
-        <InputSelect id="groupeId" class="form-control" @bind-Value="modele.GroupeId">
-            @foreach (var groupe in groupes)
+        <!-- Nom du modèle -->
+        <div class="form-group mb-3 w-50 mx-auto">
+            <label for="nom">Nom du modèle :</label>
+            <InputText id="nom" class="form-control" @bind-Value="modele.Nom" />
+        </div>
+
+        <!-- Sélectionner un groupe -->
+        <div class="form-group mb-3 w-50 mx-auto">
+            <label for="groupeId">Groupe :</label>
+            <InputSelect id="groupeId" class="form-control" @bind-Value="modele.GroupeId">
+                <option value="">-- Sélectionnez un groupe --</option>
+
+                @foreach (var groupe in groupes)
+                {
+                    <option value="@groupe.Id">@groupe.Nom</option>
+                }
+            </InputSelect>
+        </div>
+
+        <!-- Sélectionner un site -->
+        <div class="form-group mb-3 w-50 mx-auto">
+            <label for="siteId">Site :</label>
+            <InputSelect id="siteId" class="form-control" @bind-Value="modele.SiteId">
+                <option value="">-- Sélectionnez un site --</option>
+
+                @foreach (var site in sites)
+                {
+                    <option value="@site.Id">@site.Nom</option>
+                }
+            </InputSelect>
+        </div>
+
+        <!-- Compositions -->
+        <div class="form-group mb-3 w-50 mx-auto" id="compositionContainer">
+            <h3>Compositions</h3>
+            @for (int i = 0; i < compositionModels.Count; i++)
             {
-                <option value="@groupe.Id">@groupe.Nom</option>
-            }
-        </InputSelect>
-    </div>
+                var currentIndex = i;
+                <div class="composition-block border p-3 mb-3">
+                    <p>Composition @(currentIndex + 1)</p>
 
-    <!-- Sélectionner un site -->
-    <div class="form-group">
-        <label for="siteId">Site :</label>
-        <InputSelect id="siteId" class="form-control" @bind-Value="modele.SiteId">
-            @foreach (var site in sites)
-            {
-                <option value="@site.Id">@site.Nom</option>
-            }
-        </InputSelect>
-    </div>
+                    <div class="form-group mb-3 w-50 mx-auto">
+                        <label for="@($"type_{currentIndex}")">Type de composition :</label>
+                        <InputText id="@($"type_{currentIndex}")" class="form-control"
+                                   @bind-Value="compositionModels[currentIndex].Type" />
+                    </div>
 
-    <!-- Compositions -->
-    <div class="form-group" id="compositionContainer">
-        <h3>Compositions (@compositionModels.Count)</h3>
-        @for (int i = 0; i < compositionModels.Count; i++)
-        {
-            var currentIndex = i;
-            <div class="composition-block border p-3 mb-3">
-                <p>Composition @(currentIndex + 1)</p>
-
-                <div class="mb-3">
-                    <label for="@($"type_{currentIndex}")">Type de composition :</label>
-                    <InputText id="@($"type_{currentIndex}")" class="form-control"
-                               @bind-Value="compositionModels[currentIndex].Type" />
+                    <div class="form-group mb-3 w-50 mx-auto">
+                        <label for="@($"pdf_{currentIndex}")">PDF de la composition :</label>
+                        <InputFile id="@($"pdf_{currentIndex}")" class="form-control"
+                                   OnChange="@(e => HandleFileSelected(e, currentIndex))" />
+                    </div>
                 </div>
+            }
 
-                <div class="mb-3">
-                    <label for="@($"pdf_{currentIndex}")">PDF de la composition :</label>
-                    <InputFile id="@($"pdf_{currentIndex}")" class="form-control"
-                               OnChange="@(e => HandleFileSelected(e, currentIndex))" />
-                </div>
-            </div>
-        }
+            <button type="button" class="btn btn-info mt-3" @onclick="AddComposition">
+                Ajouter une composition
+            </button>
+        </div>
 
-        <button type="button" class="btn btn-info mt-3" @onclick="AddComposition">
-            Ajouter une composition (+)
-        </button>
-    </div>
-
-    <button type="submit" class="btn btn-success">Enregistrer</button>
-</EditForm>
-
+        <button type="submit" class="btn btn-primary">Ajouter</button>
+    </EditForm>
+</div>
 @code {
     private Modele modele = new Modele();
     private List<Groupe> groupes = new List<Groupe>();
     private List<Site> sites = new List<Site>();
     private List<CompositionModel> compositionModels = new List<CompositionModel>();
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -93,10 +112,7 @@
             sites = await DatabaseService.GetSitesAsync();
             Logger.LogInformation($"Sites chargés : {sites.Count}");
 
-            compositionModels.Clear();
-            compositionModels.Add(new CompositionModel { Type = string.Empty });
-            Logger.LogInformation("Première composition ajoutée");
-
+            compositionModels.Clear(); // Pas de composition par défaut
             Logger.LogInformation("Fin OnInitializedAsync");
         }
         catch (Exception ex)
@@ -105,34 +121,57 @@
         }
     }
 
+
     private async Task HandleSubmit()
     {
         try
         {
-            Logger.LogInformation("Début de la soumission du formulaire");
+            if (string.IsNullOrEmpty(modele.Nom))
+            {
+                errorMessage = "Veuillez entrer un nom";
+                return;
+            }
 
+            if (string.IsNullOrWhiteSpace(modele?.GroupeId.ToString()) || modele.GroupeId == 0)
+            {
+                errorMessage = "Veuillez sélectionner un groupe.";
+                return; // Empêche la soumission si le groupe est invalide
+            }
+
+            if (string.IsNullOrWhiteSpace(modele?.SiteId.ToString()) || modele.SiteId == 0)
+            {
+                errorMessage = "Veuillez sélectionner un site.";
+                return; // Empêche la soumission si le site est invalide
+            }
             // Enregistrer le modèle dans la base de données
             var modeleId = await DatabaseService.AddModeleAsync(modele);
-            Logger.LogInformation($"Modèle créé avec l'ID : {modeleId}");
 
-            // Traiter les compositions
-            foreach (var composition in compositionModels)
+            // Vérifiez si la liste des compositions n'est pas vide et contient au moins une composition valide
+            if (compositionModels.Any(c => !string.IsNullOrWhiteSpace(c.Type) && c.File != null))
             {
-                if (composition.File != null)
+                // Traiter les compositions
+                foreach (var composition in compositionModels)
                 {
-                    Logger.LogInformation($"Traitement du fichier : {composition.File.Name}");
-                    var fileUrl = await UploadFile(composition.File);
+                    if (!string.IsNullOrWhiteSpace(composition.Type) && composition.File != null)
+                    {
+                        Logger.LogInformation($"Traitement du fichier : {composition.File.Name}");
+                        var fileUrl = await UploadFile(composition.File);
 
-                    await DatabaseService.AddCompositionAsync(new Composition
-                        {
-                            Nom = composition.Type,
-                            Lien = fileUrl,
-                            ModeleId = (ulong)modeleId,
-                            CreatedAt = DateTime.UtcNow,
-                            UpdatedAt = DateTime.UtcNow
-                        });
-                    Logger.LogInformation("Composition ajoutée avec succès");
+                        await DatabaseService.AddCompositionAsync(new Composition
+                            {
+                                Nom = composition.Type,
+                                Lien = fileUrl,
+                                ModeleId = (ulong)modeleId,
+                                CreatedAt = DateTime.UtcNow,
+                                UpdatedAt = DateTime.UtcNow
+                            });
+                        Logger.LogInformation("Composition ajoutée avec succès");
+                    }
                 }
+            }
+            else
+            {
+                Logger.LogInformation("Aucune composition valide à ajouter");
             }
 
             Navigation.NavigateTo("/modeles");
@@ -143,6 +182,7 @@
             // Vous pourriez vouloir afficher un message d'erreur à l'utilisateur ici
         }
     }
+
 
     private void GoBack()
     {

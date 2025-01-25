@@ -6,43 +6,50 @@
 @using System.Diagnostics
 @using System.Text.Json
 @using System.Text
+@using CarnApprenti.Components.Layout
 @inject ILogger<Login> Logger
 @inject NavigationManager Navigation
 @inject DatabaseService DatabaseService
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
 
-<EditForm Model="loginModel" OnValidSubmit="HandleLogin">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
+<div class="sidebar">
+    <NavMenu />
+</div>
 
-    <div class="container d-flex justify-content-center align-items-center min-vh-100">
-        <div class="login-container p-4 border shadow-lg rounded">
-            <h1 class="text-center text-primary mb-4">
-                <span class="bi bi-lock-fill"></span> Connexion
-            </h1>
+<div style="margin-left:250px;transform:scale(1.2);">
 
-            @if (loginErrorMessage != null)
-            {
-                <div class="alert alert-danger text-center">
-                    @loginErrorMessage
+    <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="container d-flex justify-content-center align-items-center min-vh-100">
+            <div class="login-container p-4 border shadow-lg rounded">
+                <h1 class="text-center text-primary mb-4">
+                    <span class="bi bi-lock-fill"></span> Connexion
+                </h1>
+
+                @if (loginErrorMessage != null)
+                {
+                    <div class="alert alert-danger text-center">
+                        @loginErrorMessage
+                    </div>
+                }
+
+                <div class="form-group mb-3">
+                    <label for="identifiant" class="form-label">Identifiant :</label>
+                    <InputText id="identifiant" @bind-Value="loginModel.Identifiant" class="form-control" required />
                 </div>
-            }
 
-            <div class="form-group mb-3">
-                <label for="identifiant" class="form-label">Identifiant :</label>
-                <InputText id="identifiant" @bind-Value="loginModel.Identifiant" class="form-control" required />
+                <div class="form-group mb-3">
+                    <label for="mdp" class="form-label">Mot de passe :</label>
+                    <InputText id="mdp" type="password" @bind-Value="loginModel.Mdp" class="form-control" required />
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 mt-3">Se connecter</button>
             </div>
-
-            <div class="form-group mb-3">
-                <label for="mdp" class="form-label">Mot de passe :</label>
-                <InputText id="mdp" type="password" @bind-Value="loginModel.Mdp" class="form-control" required />
             </div>
-
-            <button type="submit" class="btn btn-primary w-100 mt-3">Se connecter</button>
-        </div>
-    </div>
-</EditForm>
-
+    </EditForm>
+</div>
 @code {
     private int? userId;
 
@@ -75,12 +82,12 @@
 
             if (user != null)
             {
-                var encryptedPassword = user["Password"].ToString();
+                var encryptedPassword = user.Password.ToString();
 
                 if (DecryptLaravelPassword(encryptedPassword, "base64:COwLBPHHHx0xJdy/CAIMVbO4VbgkffA/0QntdefwruQ=") == loginModel.Mdp)
                 {
                     // Récupérer le rôle de l'utilisateur
-                    var role = await DatabaseService.GetUserRolesAsync(ulong.Parse(user["Id"].ToString()));
+                    var role = await DatabaseService.GetUserRolesAsync(ulong.Parse(user.Id.ToString()));
 
                     // Vérifier si l'utilisateur a le rôle "admin" ou "qualite"
                     if (role == "admin" || role == "qualite")
@@ -88,9 +95,9 @@
                         // Stocker les informations de l'utilisateur et son rôle dans la session
                         await SessionStorage.SetItemAsync("Role", role); // Rôle de l'utilisateur
                         await SessionStorage.SetItemAsync("Email", loginModel.Identifiant);
-                        await SessionStorage.SetItemAsync("Id", int.Parse(user["Id"].ToString()));
-                        await SessionStorage.SetItemAsync("Nom", user["Nom"].ToString());
-                        await SessionStorage.SetItemAsync("Prenom", user["Prenom"].ToString());
+                        await SessionStorage.SetItemAsync("Id", int.Parse(user.Id.ToString()));
+                        await SessionStorage.SetItemAsync("Nom", user.Nom?.ToString());
+                        await SessionStorage.SetItemAsync("Prenom", user.Prenom?.ToString());
 
                         // Rediriger vers la page d'accueil
                         Navigation.NavigateTo("/");
@@ -120,8 +127,6 @@
 
     public static string DecryptLaravelPassword(string encryptedData, string laravelAppKey)
     {
-        try
-        {
             // 1️⃣ Extraire la clé Laravel
             byte[] keyBytes = Convert.FromBase64String(laravelAppKey.Replace("base64:", ""));
 
@@ -151,11 +156,7 @@
 
             string decryptedPassword = srDecrypt.ReadToEnd();
             return decryptedPassword;
-        }
-        catch (Exception ex)
-        {
-            return null;
-        }
+        
     }
 
     public class LoginModel

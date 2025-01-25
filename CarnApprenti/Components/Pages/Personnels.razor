@@ -4,62 +4,76 @@
 @inject DatabaseService DatabaseService
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
 @inject IJSRuntime js
+@using CarnApprenti.Components.Layout
 
-<button class="retour-link bouton btn btn-secondary" @onclick="GoBack">Retour</button>
-<h1 class="text-center mt-4">Gestion des personnels</h1>
-
-
-<div class="container_bouton">
-    <a href="add_personnel" class="btn btn-primary">Ajout de personnel</a>
+<div class="sidebar">
+    <NavMenu />
 </div>
 
-@if (personnels == null)
-{
-    <p>Chargement des personnels...</p>
-    <p class="text-danger">@errorMessage</p>
-}
-else if (personnels.Count == 0)
-{
-    <p>Aucun personnel trouvé.</p>
-}
-else
-{
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered">
-            <thead class="table-dark">
-                <tr class="text-center">
-                    <th>Nom</th>
-                    <th>Prénom</th>
-                    <th>Téléphone</th>
-                    <th>Mail</th>
-                    <th>Description</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody class="text-white">
-                @foreach (var personnel in personnels)
-                {
-                    <tr class="text-center">
-                        <td>@personnel.Nom</td>
-                        <td>@personnel.Prenom</td>
-                        <td>@personnel.Telephone</td>
-                        <td>@personnel.Mail</td>
-                        <td>@(string.IsNullOrEmpty(personnel.Description) ? "Aucune description" : personnel.Description)</td>
-                        <td>
-                            <a href="edit_personnel/@personnel.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
-                            <button class="btn btn-danger btn-sm m-2" @onclick="() => DeletePersonnel(personnel.Id)">Supprimer</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+<div style="margin-left:250px">
+
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+    <h1 class="text-center mt-4">Gestion des personnels</h1>
+
+    <div class="container_bouton">
+        <a href="add_personnel" class="btn btn-primary">Ajout de personnel</a>
     </div>
-}
+
+    @if (personnels == null)
+    {
+        <p>Chargement des personnels...</p>
+        <p class="text-danger">@errorMessage</p>
+    }
+    else if (personnels.Count == 0)
+    {
+        <p>Aucun personnel trouvé.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark">
+                    <tr class="text-center">
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Téléphone</th>
+                        <th>Mail</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-white">
+                    @foreach (var personnel in personnels)
+                    {
+                        <tr class="text-center">
+                            <td>@personnel.Nom</td>
+                            <td>@personnel.Prenom</td>
+                            <td>@personnel.Telephone</td>
+                            <td>@personnel.Mail</td>
+                            <td>@(string.IsNullOrEmpty(personnel.Description) ? "Aucune description" : personnel.Description)</td>
+                            <td>
+                                <a href="edit_personnel/@personnel.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
+                                <button class="btn btn-danger btn-sm m-2" @onclick="() => ConfirmDeletePersonnel(personnel.Id)">Supprimer</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<ConfirmationModal @ref="confirmationModal"
+                   Title="Confirmation"
+                   Message="Êtes-vous sûr de vouloir supprimer ce personnel ?"
+                   OnClose="OnModalClose" />
 
 @code {
     private List<LivretApprentissageContext.Personnel>? personnels;
     private ulong? currentUserId;
-    private string errorMessage;
+    private string? errorMessage;
+    private ConfirmationModal? confirmationModal;
+    private ulong? personnelIdToDelete;
 
     protected override async Task OnInitializedAsync()
     {
@@ -89,14 +103,19 @@ else
         }
     }
 
-    private async Task DeletePersonnel(ulong personnelId)
+    private void ConfirmDeletePersonnel(ulong personnelId)
     {
-        var confirmed = await js.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer ce personnel ?");
-        if (confirmed)
+        personnelIdToDelete = personnelId;
+        confirmationModal?.Show();
+    }
+
+    private async Task OnModalClose(bool confirmed)
+    {
+        if (confirmed && personnelIdToDelete.HasValue)
         {
             try
             {
-                await DatabaseService.DeletePersonnelAsync(personnelId);
+                await DatabaseService.DeletePersonnelAsync(personnelIdToDelete.Value);
                 personnels = await DatabaseService.GetPersonnelsAsync(); // Recharger la liste après suppression
             }
             catch (Exception ex)
@@ -104,6 +123,8 @@ else
                 errorMessage = $"Une erreur s'est produite lors de la suppression du personnel : {ex.Message}";
             }
         }
+        personnelIdToDelete = null;
+        confirmationModal?.Hide();
     }
 
     private void GoBack()

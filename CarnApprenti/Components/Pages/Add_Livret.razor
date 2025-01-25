@@ -4,56 +4,74 @@
 @inject DatabaseService DatabaseService
 @inject NavigationManager Navigation
 @inject IJSRuntime js
+@inject ILogger<DatabaseService> logger
+@using CarnApprenti.Components.Layout
+@using Microsoft.Extensions.Logging
 
-<button class="btn btn-secondary" @onclick="GoBack">← Retour</button>
+<div class="sidebar">
+    <NavMenu />
+</div>
 
-<h1 class="text-center mb-4">Ajouter un livret</h1>
+<div style="margin-left:250px">
 
-@if (isLoading)
-{
-    <div class="text-center">
-        <h2>Chargement des données...</h2>
-    </div>
-}
-else
-{
-    <EditForm Model="livret" OnValidSubmit="HandleSubmit">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
 
-        <div class="form-group mb-4">
-            <label for="modeleId" class="form-label">Choisir un modèle</label>
-            <InputSelect id="modeleId" class="form-control" @bind-Value="livret.ModeleId">
-                <option value="">Sélectionner un modèle</option>
-                @foreach (var modele in modeles)
-                {
-                    <option value="@modele.Id">@modele.Nom</option>
-                }
-            </InputSelect>
+    <h1 class="text-center mb-4">Ajouter un livret</h1>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
         </div>
+    }
 
-        <div class="form-group mb-4">
-            <label for="userId" class="form-label">Choisir un apprenant</label>
-            <InputSelect id="userId" class="form-control" @bind-Value="livret.UserId">
-                <option value="">Sélectionner un apprenant</option>
-                @foreach (var apprenant in apprenants)
-                {
-                    <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>
-                }
-            </InputSelect>
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <h2>Chargement des données...</h2>
         </div>
+    }
+    else
+    {
+        <EditForm Model="livret" class="text-center" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
 
-        <div class="d-flex justify-content-center">
-            <button type="submit" class="btn btn-primary btn-lg">Ajouter</button>
-        </div>
-    </EditForm>
-}
+            <div class="form-group mb-3 w-50 mx-auto">
+                <label for="modeleId" class="form-label">Choisir un modèle</label>
+                <InputSelect id="modeleId" class="form-control" @bind-Value="livret.ModeleId">
+                    <option value="">-- Sélectionnez un modèle --</option>
 
+                    @foreach (var modele in modeles)
+                    {
+                        <option value="@modele.Id">@modele.Nom</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <div class="form-group mb-3 w-50 mx-auto">
+                <label for="userId" class="form-label">Choisir un apprenant</label>
+                <InputSelect id="userId" class="form-control" @bind-Value="livret.UserId">
+                    <option value="">-- Sélectionnez un apprenant --</option>
+
+                    @foreach (var apprenant in apprenants)
+                    {
+                        <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>
+                    }
+                </InputSelect>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Ajouter</button>
+
+        </EditForm>
+    }
+</div>
 @code {
     private bool isLoading = true;
     private Livret livret = new Livret();  // Assurez-vous que livret est correctement initialisé.
     private List<Modele> modeles = new List<Modele>();
     private List<User> apprenants = new List<User>();
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -63,10 +81,6 @@ else
         {
             modeles = await DatabaseService.GetModelesAsync(); // Charger les modèles
             apprenants = await DatabaseService.GetApprenantsAsync(); // Charger les utilisateurs
-
-            // Initialiser les valeurs pour afficher "Sélectionner un modèle" et "Sélectionner un apprenant"
-            livret.ModeleId = null;
-            livret.UserId = null;
         }
         catch (Exception ex)
         {
@@ -80,6 +94,18 @@ else
     {
         try
         {
+            if (livret.ModeleId == null)
+            {
+                errorMessage = "Veuillez sélectionner un modèle.";
+                return;
+            }
+
+            if (livret.UserId == null)
+            {
+                errorMessage = "Veuillez sélectionner un apprenant.";
+                return;
+            }
+
             livret.CreatedAt = DateTime.Now;
             // Ajouter le livret à la base de données
             await DatabaseService.AddLivretAsync(livret);

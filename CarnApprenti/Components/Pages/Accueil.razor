@@ -1,111 +1,105 @@
-﻿@page "/"
+﻿@* Accueil.razor *@
+@page "/"
+@using CarnApprenti.Components.Layout
 @using Microsoft.AspNetCore.Components.Forms
 @using BCrypt.Net
+@using Microsoft.Extensions.Logging
 @using static CarnApprenti.LivretApprentissageContext
 @inject NavigationManager Navigation
 @inject DatabaseService DatabaseService
+@inject ILogger<Accueil> Logger
+
 @inject Blazored.SessionStorage.ISessionStorageService SessionStorage
 
-@if (isLoading)
-{
-    <div class="d-flex justify-content-center align-items-center vh-100">
-        <div class="text-center">
-            <h2 class="text-primary">Chargement en cours...</h2>
-        </div>
+    <div class="sidebar">
+        <NavMenu />
     </div>
-}
-else if (Id.HasValue)
-{
-    <div class="container text-center">
-        <h1 class="display-4 text-white">Bienvenue @nom @prenom</h1>
-        <h3 class="text-muted">Rôle : @role</h3>
-        <button @onclick="Logout" class="btn btn-danger mt-4">Se déconnecter</button>
-    </div>
+   
 
-    @if (role == "admin")
-    {
-        <div class="container mt-5">
-            <div class="row">
-                <div class="col-12 col-md-3 mb-3">
-                    <a class="btn btn-primary w-100 text-truncate" href="users">Gestion des utilisateurs</a>
-                </div>
-                <div class="col-12 col-md-3 mb-3">
-                    <a class="btn btn-primary w-100 text-truncate" href="groupes">Gestion des groupes</a>
-                </div>
-                <div class="col-12 col-md-3 mb-3">
-                    <a class="btn btn-primary w-100 text-truncate" href="formateurs/matieres">Gestion des formateurs et matières</a>
-                </div>
-                <div class="col-12 col-md-3 mb-3">
-                    <a class="btn btn-primary w-100 text-truncate" href="livrets">Gestion des livrets</a>
-                </div>
-                <div class="col-12 col-md-3 mb-3">
-                    <a class="btn btn-primary w-100 text-truncate" href="personnels">Gestion des personnels</a>
-                </div>
-                <div class="col-12 col-md-3 mb-3">
-                    <a class="btn btn-primary w-100 text-truncate" href="sites">Gestion des sites</a>
+    <div class="text-center" style="margin-left:250px">
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center align-items-center min-vh-100">
+                <div class="text-center">
+                    <h2 class="text-primary">Chargement en cours...</h2>
                 </div>
             </div>
-        </div>
+        }
+        else if (Id.HasValue)
+        {
+            <div class="mb-5 mt-5">
+                <div>
+                    <h1 class="display-4 text-white">Bienvenue @nom @prenom</h1>
+                    <h3 class="text-muted">Rôle : @role</h3>
+                </div>
+            </div>
 
-    }
-    else if (role == "qualite")
-    {
-        <div class="container mt-5">
-            <div class="col-12 col-md-3 mb-3">
-                <a class="btn btn-primary w-100 text-truncate" href="modeles">Gestion des modèles</a>
+            @if (role == "admin")
+            {
+                <div class="row g-5 justify-content-center">
+                    <div class="col-12 col-md-6 col-lg-4 m-5">
+                        <a class="btn btn-primary w-100 p-3" href="users">Gestion des utilisateurs</a>
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-4 m-5">
+                        <a class="btn btn-primary w-100 p-3" href="groupes">Gestion des groupes</a>
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-4 m-5">
+                        <a class="btn btn-primary w-100 p-3" href="formateurs/matieres">Gestion des formateurs et matières</a>
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-4 m-5">
+                        <a class="btn btn-primary w-100 p-3" href="livrets">Gestion des livrets</a>
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-4 m-5">
+                        <a class="btn btn-primary w-100 p-3" href="personnels">Gestion des personnels</a>
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-4 m-5">
+                        <a class="btn btn-primary w-100 p-3" href="sites">Gestion des sites</a>
+                    </div>
+                </div>
+            }
+            else if (role == "qualite")
+            {
+                <div class="row justify-content-center">
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <a class="btn btn-primary w-100 p-3" href="modeles">Gestion des modèles</a>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="d-flex justify-content-center align-items-center min-vh-100">
+                <div class="text-center">
+                    <h1 class="display-4 text-white mb-4">Bienvenue sur l'administration de CarnApprenti</h1>
+                </div>
             </div>
-            <div class="col-12 col-md-3 mb-3">
-                <a class="btn btn-primary w-100 text-truncate" href="compositions">Gestion des compositions PDF</a>
-            </div>
-        </div>
-    }
-}
-else
-{
-    <div class="container text-center">
-        <h1 class="display-4 text-white">Bienvenue sur l'administration de CarnApprenti</h1>
-        <a class="btn btn-primary mt-4" href="login">Se connecter</a>
+        }
     </div>
-}
 
 @code {
     private string? nom;
     private string? prenom;
     private string? role;
     private ulong? Id;
-    private List<User> users = new();
-    private string errorMessage = string.Empty;
-    private bool isLoading = true; // Indique que la page est en cours de chargement
+    private bool isLoading = true;
 
-
-    // Récupération des informations de session + chargement des utilisateurs
     protected override async Task OnInitializedAsync()
     {
-        isLoading = true; // Le chargement commence
-
-        // Récupération des informations de session
+        isLoading = true;
         nom = await SessionStorage.GetItemAsync<string>("Nom");
         prenom = await SessionStorage.GetItemAsync<string>("Prenom");
-        role = await SessionStorage.GetItemAsync<string>("Role"); // Récupère le rôle
+        role = await SessionStorage.GetItemAsync<string>("Role");
         Id = await SessionStorage.GetItemAsync<ulong?>("Id");
-
-        Console.WriteLine($"Session : Nom={nom}, Prénom={prenom}, Id={Id}, Role={role}");
-
-        isLoading = false; // Le chargement est terminé
+        Logger.LogInformation($"Session : Nom={nom}, Prénom={prenom}, Id={Id}, Role={role}");
+        isLoading = false;
     }
 
     private async Task Logout()
     {
         Console.WriteLine("Logout function triggered");
-
-        // Effacer toutes les données de session
         await SessionStorage.ClearAsync();
-
-        // Tester si la session est bien effacée
         var test = await SessionStorage.GetItemAsync<string>("Nom");
         Console.WriteLine(test == null ? "SessionStorage cleared" : "SessionStorage not cleared");
-
-        // Rediriger vers la page de connexion
         Navigation.NavigateTo("/login");
     }
 }
