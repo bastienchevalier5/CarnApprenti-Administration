@@ -61,6 +61,7 @@
                         <tr>
                             <td>
                                 <InputSelect @bind-Value="item.MatiereId" class="form-control">
+                                    <option value="">-- Sélectionnez une matière --</option>
 
                                     @foreach (var matiere in matieres)
                                     {
