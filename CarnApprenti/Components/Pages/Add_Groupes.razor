@@ -86,6 +86,7 @@
     private List<EquipePedagogiqueItem> equipePedagogique = new List<EquipePedagogiqueItem>();
     private ulong selectedReferentId;
     private string? errorMessage;
+    private ulong groupeId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -126,34 +127,45 @@
                 return;
             }
 
-            if (selectedReferentId > 0)
-            {
-                var referent = referents.FirstOrDefault(r => r.Id == selectedReferentId);
-                if (referent != null)
-                {
-                    referent.GroupeId = newGroupe.Id;
-                    await DatabaseService.UpdateUserAsync(referent);
-                }
-            }
-            else
+            if (selectedReferentId == 0)
             {
                 errorMessage = "Veuillez sélectionner un référent.";
                 return;
             }
-      
-            // Assigner les matières et formateurs au groupe
+
+            groupeId = await DatabaseService.AddGroupeAsync(newGroupe);
+
+            // Associer le référent au groupe
+            var referent = referents.FirstOrDefault(r => r.Id == selectedReferentId);
+            if (referent != null)
+            {
+                referent.GroupeId = groupeId;
+                await DatabaseService.UpdateUserAsync(referent);
+            }
+
+            // Ajouter le groupe
+
+            if (groupeId == 0)
+            {
+                errorMessage = "Erreur : L'ID du groupe n'a pas été généré.";
+                return;
+            }
+
+            // Associer les matières au groupe
             foreach (var item in equipePedagogique)
             {
                 if (item.MatiereId > 0)
                 {
-                    await DatabaseService.AddMatiereToGroupeAsync(newGroupe.Id, item.MatiereId); // Ajout de l'ID formateur
-                } else
+                    await DatabaseService.AddMatiereToGroupeAsync(groupeId, item.MatiereId);
+                }
+                else
                 {
-                    errorMessage = "Veuillez ajouter au moins une matière";
+                    errorMessage = "Veuillez ajouter une matière valide.";
                     return;
                 }
             }
-            await DatabaseService.AddGroupeAsync(newGroupe);
+
+            // Redirection après succès
             Navigation.NavigateTo("/groupes");
         }
         catch (Exception ex)
@@ -161,6 +173,7 @@
             await js.InvokeVoidAsync("alert", $"Erreur lors de l'ajout du groupe : {ex.Message}");
         }
     }
+
 
     private void GoBack()
     {

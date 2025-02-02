@@ -48,8 +48,11 @@
                     {
                         var roles = userRoles.ContainsKey(user.Id) ? userRoles[user.Id] : new List<string> { "Aucun rôle" };
                         var apprenantsAssocies = userRoles.ContainsKey(user.Id) && roles.Contains("tuteur")
-                        ? apprenants[user.Id]?.Select(apprenant => $"{apprenant.Nom} {apprenant.Prenom}").ToList()
+                        ? apprenants.ContainsKey(user.Id) && apprenants[user.Id]?.Any() == true
+                        ? apprenants[user.Id]?.Select(apprenant => $"{apprenant?.Nom} {apprenant?.Prenom}").ToList()
+                        : new List<string> { "Aucun apprenant" }
                         : new List<string> { "Aucun apprenant" };
+
 
                         <tr class="text-center">
                             <td>@user.Nom</td>
@@ -126,7 +129,9 @@
                 if (role == "tuteur")
                 {
                     var apprenantsAssocies = await DatabaseService.GetApprenantsForTuteurAsync(user.Id);
-                    apprenants[user.Id] = apprenantsAssocies;
+                    apprenants[user.Id] = apprenantsAssocies != null && apprenantsAssocies.Any()
+                        ? apprenantsAssocies  // Gardez les objets User, pas des chaînes
+                        : new List<User?> { null };  // Liste vide ou un seul élément null si pas d'apprenants associés
                 }
             }
         }

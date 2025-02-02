@@ -69,7 +69,7 @@
                     <div class="form-group mb-3 w-50 mx-auto">
                         <label for="Tuteur" class="form-label">Sélectionner un apprenant</label>
                         <InputSelect id="Tuteur" class="form-control" @bind-Value="selectedApprenantId">
-
+                            <option value="">-- Sélectionnez un apprenant --</option>
                             @foreach (var apprenant in apprenants)
                             {
                                 <option value="@apprenant.Id">@apprenant.Nom @apprenant.Prenom</option>

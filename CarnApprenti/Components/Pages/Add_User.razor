@@ -159,6 +159,14 @@
                 return;
             }
 
+            var existingUser = await DatabaseService.GetUserByEmailAsync(newUser.Email);
+            if (existingUser != null)
+            {
+                errorMessage = "Cet email est déjà utilisé. Veuillez en choisir un autre.";
+                return;
+            }
+
+
             if (string.IsNullOrEmpty(selectedRole))
             {
                 errorMessage = "Veuillez sélectionner un rôle.";

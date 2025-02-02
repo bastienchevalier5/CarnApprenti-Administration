@@ -147,6 +147,9 @@
             try
             {
                 await DatabaseService.DeleteFormateurAsync(formateurIdToDelete.Value);
+
+                matieres = await DatabaseService.GetMatieresAsync();
+
                 formateurs = formateurs.Where(f => f.Id != formateurIdToDelete.Value).ToList();
             }
             catch (Exception ex)

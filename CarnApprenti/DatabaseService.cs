@@ -53,9 +53,34 @@ namespace CarnApprenti
         /// <param name="userId">ID de l'utilisateur à supprimer</param>
         public async Task DeleteUserAsync(ulong userId)
         {
-                var user = await _context.Users.FindAsync(userId);
+            User? user = await _context.Users.FindAsync(userId);
+            Livret livret = await _context.Livrets
+                .Where(l => l.UserId == user.Id)
+                .FirstOrDefaultAsync();
+
+
                 if (user != null)
                 {
+                    if (livret != null)
+                    {
+                    _context.Livrets.Remove(livret);
+                    }
+
+                    // Vérifier si d'autres utilisateurs ont cet utilisateur comme apprenant
+                    var tuteurs = await _context.Users
+                        .Where(u => u.ApprenantId == user.Id)
+                        .ToListAsync();
+
+                    if (tuteurs != null)
+                    {
+                        foreach (var tuteur in tuteurs)
+                            {
+                                // Supprimer la relation avec l'apprenant
+                                tuteur.ApprenantId = null;
+                                _context.Users.Update(tuteur); // Mettre à jour l'utilisateur (tuteur)
+                            }
+                    }
+                    
                     _context.Users.Remove(user);
                     await _context.SaveChangesAsync();
                 }
@@ -73,9 +98,25 @@ namespace CarnApprenti
         public async Task DeleteGroupeAsync(ulong idGroupe)
         {
                 var groupe = await _context.Groupes.FindAsync(idGroupe);
+                var groupeMatieres = await _context.GroupeMatieres
+                    .Where(gm => gm.GroupeId == groupe.Id)
+                    .ToListAsync();
+                var users = await _context.Users
+                    .Where(u => u.GroupeId == groupe.Id)
+                    .ToListAsync();
+
                 if (groupe != null)
                 {
-                    _context.Groupes.Remove(groupe);
+                    foreach (var gm in groupeMatieres)
+                    {
+                    _context.GroupeMatieres.Remove(gm);
+                    }
+
+                    foreach (var user in users)
+                    {
+                        user.GroupeId = null;
+                    }
+                _context.Groupes.Remove(groupe);
                     await _context.SaveChangesAsync();
                 }
                 else
@@ -102,12 +143,13 @@ namespace CarnApprenti
             return await _context.Groupes.ToListAsync();
         }
 
-        public async Task AddGroupeAsync(Groupe groupe)
+        public async Task<ulong> AddGroupeAsync(Groupe groupe)
         {
             groupe.CreatedAt = DateTime.Now;
             groupe.UpdatedAt = DateTime.Now;
             _context.Groupes.Add(groupe);
             await _context.SaveChangesAsync();
+            return groupe.Id;
         }
 
         public async Task<Groupe?> GetGroupeByIdAsync(ulong id)
@@ -406,8 +448,16 @@ namespace CarnApprenti
         public async Task DeleteFormateurAsync(ulong formateurId)
         {
             var formateur = await _context.Formateurs.FindAsync(formateurId);
+            var matieres = await _context.Matieres
+                .Where(m => m.FormateurId == formateur.Id)
+                .ToListAsync();
+
             if (formateur != null)
             {
+                foreach (var matiere in matieres)
+                {
+                    _context.Matieres.Remove(matiere);
+                }
                 _context.Formateurs.Remove(formateur);
                 await _context.SaveChangesAsync();
             }
@@ -421,6 +471,7 @@ namespace CarnApprenti
             {
                 _context.Matieres.Remove(matiere);
                 await _context.SaveChangesAsync();
+
             }
         }
 
@@ -490,8 +541,16 @@ namespace CarnApprenti
         public async Task DeleteLivretAsync(ulong livretId)
         {
             var livret = await _context.Livrets.FindAsync(livretId);
+            var compteRendus = await _context.CompteRendus
+                .Where(cr => cr.LivretId == livret.Id)
+                .ToListAsync();
+
             if (livret != null)
             {
+                foreach (var compteRendu in compteRendus)
+                {
+                    _context.CompteRendus.Remove(compteRendu);
+                }
                 _context.Livrets.Remove(livret);
                 await _context.SaveChangesAsync();
             }
@@ -756,8 +815,12 @@ namespace CarnApprenti
         public async Task DeletePersonnelAsync(ulong personnelId)
         {
             var personnel = await _context.Personnels.FindAsync(personnelId);
+            var personnelSite = await _context.PersonnelSites
+                .Where(ps => ps.PersonnelId == personnelId)
+                .FirstOrDefaultAsync();
             if (personnel != null)
             {
+                _context.PersonnelSites.Remove(personnelSite);
                 _context.Personnels.Remove(personnel);
                 await _context.SaveChangesAsync();
             }
@@ -870,6 +933,20 @@ namespace CarnApprenti
             try
             {
                 var site = await _context.Sites.FindAsync(siteId) ?? throw new Exception("Site introuvable.");
+                var personnelSites = await _context.PersonnelSites
+                    .Where(ps => ps.SiteId == site.Id)
+                    .ToListAsync();
+                var modeles = await _context.Modeles
+                    .Where(m => m.SiteId == site.Id)
+                    .ToListAsync();
+                foreach (var personnelSite in personnelSites)
+                {
+                    _context.PersonnelSites.Remove(personnelSite);
+                }
+                foreach (var modele in modeles)
+                {
+                    _context.Modeles.Remove(modele);
+                }
                 _context.Sites.Remove(site);
                 await _context.SaveChangesAsync();
             }
@@ -950,7 +1027,9 @@ namespace CarnApprenti
             try
             {
                 var modele = await _context.Modeles.FindAsync(modeleId) ?? throw new Exception($"Modèle avec l'ID {modeleId} non trouvé.");
-                _context.Modeles.Remove(modele);
+                var livrets = await _context.Livrets
+                    .Where(l => l.ModeleId == modele.Id)
+                    .ToListAsync();
                 var compositions = await _context.Compositions
                     .Where(c => c.ModeleId == modeleId)
                     .ToListAsync();
@@ -973,6 +1052,13 @@ namespace CarnApprenti
 
                     // Supprimer la composition de la base de données
                     _context.Compositions.Remove(composition);
+
+                    foreach (var livret in livrets)
+                    {
+                        _context.Livrets.Remove(livret);
+                    }
+                    
+                    _context.Modeles.Remove(modele);
                 }
 
                 await _context.SaveChangesAsync();
