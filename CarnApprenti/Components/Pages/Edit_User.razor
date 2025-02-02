@@ -84,6 +84,7 @@
                     <div class="form-group mb-3 w-50 mx-auto">
                         <label for="Groupe" class="form-label">Groupe</label>
                         <InputSelect id="Groupe" class="form-control" @bind-Value="selectedGroupeId">
+                            <option value="">-- Sélectionnez un groupe --</option>
 
                             @foreach (var groupe in groupes)
                             {
