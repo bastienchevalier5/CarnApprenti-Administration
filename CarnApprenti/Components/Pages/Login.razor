@@ -84,7 +84,7 @@
             {
                 var encryptedPassword = user.Password.ToString();
 
-                if (DecryptLaravelPassword(encryptedPassword, "base64:COwLBPHHHx0xJdy/CAIMVbO4VbgkffA/0QntdefwruQ=") == loginModel.Mdp)
+                if (DecryptLaravelPassword(encryptedPassword, "base64:sjCajEY/QSWBEgUQQLUr1Cu0JP5a2xtx5eih2XfN7I4=") == loginModel.Mdp)
                 {
                     // Récupérer le rôle de l'utilisateur
                     var role = await DatabaseService.GetUserRolesAsync(ulong.Parse(user.Id.ToString()));

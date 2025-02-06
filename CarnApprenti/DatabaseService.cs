@@ -1053,14 +1053,15 @@ namespace CarnApprenti
                     // Supprimer la composition de la base de données
                     _context.Compositions.Remove(composition);
 
+
                     foreach (var livret in livrets)
                     {
                         _context.Livrets.Remove(livret);
                     }
                     
-                    _context.Modeles.Remove(modele);
+                    
                 }
-
+                _context.Modeles.Remove(modele);
                 await _context.SaveChangesAsync();
             }
             catch (Exception ex)

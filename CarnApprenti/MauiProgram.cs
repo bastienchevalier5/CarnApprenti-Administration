@@ -43,7 +43,7 @@ namespace CarnApprenti
 
             });
 
-            var connectionString = "server=192.168.56.56;database=carnapprenti;user=homestead;password=secret;";
+            var connectionString = "server=10.192.154.1;database=carnapprenti;user=root;password=Not24get;";
 
             builder.Services.AddDbContext<LivretApprentissageContext>(options =>
                 options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
@@ -58,19 +58,19 @@ namespace CarnApprenti
 
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            //#if WINDOWS
-            //            builder.ConfigureLifecycleEvents(events =>
-            //            {
-            //                events.AddWindows(windows => windows.OnWindowCreated(window =>
-            //                {
-            //                    window.ExtendsContentIntoTitleBar = true;
-            //                    var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
-            //                    var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
-            //                    var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
-            //                    appWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen);
-            //                }));
-            //            });
-            //#endif
+#if WINDOWS
+                        builder.ConfigureLifecycleEvents(events =>
+                        {
+                            events.AddWindows(windows => windows.OnWindowCreated(window =>
+                            {
+                                window.ExtendsContentIntoTitleBar = true;
+                                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+                                var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+                                var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
+                                appWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen);
+                            }));
+                        });
+#endif
 
 #if ANDROID
             builder.ConfigureLifecycleEvents(events =>

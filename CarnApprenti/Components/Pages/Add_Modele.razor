@@ -7,6 +7,7 @@
 @inject ILogger<Add_Modele> Logger
 @inject IJSRuntime js
 @using CarnApprenti.Components.Layout
+@using System.Net
 
 <div class="sidebar">
     <NavMenu />
@@ -74,13 +75,13 @@
                     <div class="form-group mb-3 w-50 mx-auto">
                         <label for="@($"type_{currentIndex}")">Type de composition :</label>
                         <InputText id="@($"type_{currentIndex}")" class="form-control"
-                                   @bind-Value="compositionModels[currentIndex].Type" />
+                        @bind-Value="compositionModels[currentIndex].Type" />
                     </div>
 
                     <div class="form-group mb-3 w-50 mx-auto">
                         <label for="@($"pdf_{currentIndex}")">PDF de la composition :</label>
                         <InputFile id="@($"pdf_{currentIndex}")" class="form-control"
-                                   OnChange="@(e => HandleFileSelected(e, currentIndex))" />
+                        OnChange="@(e => HandleFileSelected(e, currentIndex))" />
                     </div>
                 </div>
             }
@@ -244,7 +245,7 @@
                     await stream.CopyToAsync(fileStream);
                 }
             }
-
+            UploadFileToFtp(filePath);
             // Retourne le chemin relatif depuis wwwroot (pour utilisation dans les balises HTML, par exemple)
             return Path.Combine("pdf", fileName).Replace("\\", "/");
         }
@@ -254,6 +255,59 @@
             throw;
         }
     }
+
+    private void UploadFileToFtp(string filePath)
+    {
+        try
+        {
+            string ftpServer = "ftp://10.192.154.2/ftp/files/pdf/";
+            string username = "ftpuser";
+            string password = "Not24get";
+            string fileName = Path.GetFileName(filePath);
+            string ftpFullPath = ftpServer + fileName;
+
+            using (WebClient client = new WebClient())
+            {
+                client.Credentials = new NetworkCredential(username, password);
+
+                // Activer le mode passif (utile si actif est bloqué)
+                FtpWebRequest request = (FtpWebRequest)WebRequest.Create(ftpFullPath);
+                request.Method = WebRequestMethods.Ftp.UploadFile;
+                request.Credentials = new NetworkCredential(username, password);
+                request.UsePassive = true; // Essaie false si ça ne marche pas
+                request.UseBinary = true;
+                request.KeepAlive = false;
+
+                byte[] fileContents = File.ReadAllBytes(filePath);
+                using (Stream requestStream = request.GetRequestStream())
+                {
+                    requestStream.Write(fileContents, 0, fileContents.Length);
+                }
+
+                using (FtpWebResponse response = (FtpWebResponse)request.GetResponse())
+                {
+                    Console.WriteLine($"Upload terminé, statut : {response.StatusDescription}");
+                }
+            }
+        }
+        catch (WebException ex)
+        {
+            Console.WriteLine($"Erreur FTP : {ex.Message}");
+            if (ex.Response != null)
+            {
+                using (StreamReader reader = new StreamReader(ex.Response.GetResponseStream()))
+                {
+                    string errorDetails = reader.ReadToEnd();
+                    Console.WriteLine($"Détails de l'erreur : {errorDetails}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Autre erreur : {ex.Message}");
+        }
+    }
+
 
     private class CompositionModel
     {
