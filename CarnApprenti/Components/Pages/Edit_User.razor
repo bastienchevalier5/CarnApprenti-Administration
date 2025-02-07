@@ -220,35 +220,60 @@
     {
         try
         {
+            // Decode base64 key (removing base64: prefix if present)
             byte[] keyBytes = Convert.FromBase64String(laravelAppKey.Replace("base64:", ""));
+
+            // Validate key length for AES-256
+            if (keyBytes.Length != 32)
+            {
+                throw new ArgumentException("Invalid key length. AES-256 requires a 32-byte key.");
+            }
+
+            // Initialize AES with proper settings
             using var aes = Aes.Create();
             aes.Key = keyBytes;
             aes.Mode = CipherMode.CBC;
             aes.Padding = PaddingMode.PKCS7;
+
+            // Generate IV
             aes.GenerateIV();
             byte[] iv = aes.IV;
 
-            using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
-            using var msEncrypt = new MemoryStream();
-            using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
-            using var swEncrypt = new StreamWriter(csEncrypt);
-            swEncrypt.Write(plainText);
-            swEncrypt.Close();
-
-            byte[] cipherText = msEncrypt.ToArray();
-
-            var encryptedParts = new Dictionary<string, string>
+            // Encrypt the data
+            byte[] encryptedData;
+            using (var msEncrypt = new MemoryStream())
             {
-                { "iv", Convert.ToBase64String(iv) },
-                { "value", Convert.ToBase64String(cipherText) }
-            };
+                using (var encryptor = aes.CreateEncryptor())
+                using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+                using (var swEncrypt = new StreamWriter(csEncrypt))
+                {
+                    swEncrypt.Write(plainText);
+                }
+                encryptedData = msEncrypt.ToArray();
+            }
 
-            string jsonString = JsonSerializer.Serialize(encryptedParts);
+            // Create the payload
+            var payload = new Dictionary<string, string>
+        {
+            { "iv", Convert.ToBase64String(iv) },
+            { "value", Convert.ToBase64String(encryptedData) }
+        };
+
+            // Generate MAC
+            var macInput = $"{payload["iv"]}{payload["value"]}";
+            using (var hmac = new HMACSHA256(keyBytes))
+            {
+                byte[] mac = hmac.ComputeHash(Encoding.UTF8.GetBytes(macInput));
+                payload.Add("mac", Convert.ToHexString(mac).ToLower());
+            }
+
+            // Serialize and encode the final payload
+            string jsonString = JsonSerializer.Serialize(payload);
             return Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonString));
         }
         catch (Exception ex)
         {
-            throw new Exception($"Erreur de chiffrement : {ex.Message}");
+            throw new Exception($"Encryption error: {ex.Message}", ex);
         }
     }
 }
