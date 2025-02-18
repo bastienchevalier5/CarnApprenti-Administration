@@ -1,0 +1,131 @@
+﻿@page "/entreprises"
+@using static CarnApprenti.LivretApprentissageContext
+@inject NavigationManager Navigation
+@inject DatabaseService DatabaseService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@using CarnApprenti.Components.Layout
+
+<div class="sidebar">
+    <NavMenu />
+</div>
+
+<div style="margin-left:250px">
+
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+    <h1 class="text-center mt-4">Gestion des entreprises</h1>
+
+    <div class="container_bouton">
+        <a href="add_entreprise" class="btn btn-primary">Ajout d'entreprise</a>
+    </div>
+
+    @if (entreprises == null)
+    {
+        <p>Chargement des entreprises...</p>
+        <p class="text-danger">@errorMessage</p>
+    }
+    else if (entreprises.Count == 0)
+    {
+        <p>Aucune entreprise trouvée.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="table-dark">
+                    <tr class="text-center">
+                        <th>Nom</th>
+                        <th>Adresse</th>
+                        <th>Téléphone</th>
+                        <th>Tuteur associé</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-white">
+                    @foreach (var entreprise in entreprises)
+                    {
+                        <tr class="text-center">
+                            <td>@entreprise.Nom</td>
+                            <td>@entreprise.Adresse</td>
+                            <td>@entreprise.Telephone</td>
+                            <td>@entreprise.User.Nom @entreprise.User.Prenom</td>
+                            <td>
+                                <a href="edit_entreprise/@entreprise.Id" class="btn btn-warning btn-sm m-2">Modifier</a>
+                                <button class="btn btn-danger btn-sm m-2" @onclick="() => ConfirmDelete(entreprise.Id)">Supprimer</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<ConfirmationModal @ref="confirmationModal"
+                   Title="Confirmation"
+                   Message="Êtes-vous sûr de vouloir supprimer cette entreprise ?"
+                   OnClose="OnModalClose" />
+
+@code {
+    private List<LivretApprentissageContext.Entreprise>? entreprises;
+    private ulong? currentUserId;
+    private string? errorMessage;
+    private ConfirmationModal? confirmationModal;
+    private ulong? entrepriseIdToDelete;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Vérification de session
+            currentUserId = await SessionStorage.GetItemAsync<ulong?>("Id");
+
+            if (currentUserId == null)
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            // Chargement des sites
+            entreprises = await DatabaseService.GetEntreprisesAsync(); // Récupérer les sites
+            if (entreprises == null)
+            {
+                errorMessage = "Aucune entreprise trouvée.";
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Gestion des erreurs
+            errorMessage = $"Une erreur s'est produite lors du chargement des entreprises : {ex.Message}";
+        }
+    }
+
+    private void ConfirmDelete(ulong entrepriseId)
+    {
+        entrepriseIdToDelete = entrepriseId;
+        confirmationModal?.Show();
+    }
+
+    private async Task OnModalClose(bool confirmed)
+    {
+        if (confirmed && entrepriseIdToDelete.HasValue)
+        {
+            try
+            {
+                await DatabaseService.DeleteEntrepriseAsync(entrepriseIdToDelete.Value);
+                entreprises = await DatabaseService.GetEntreprisesAsync(); // Recharger la liste après suppression
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Une erreur s'est produite lors de la suppression de l'entreprise : {ex.Message}";
+            }
+        }
+        entrepriseIdToDelete = null;
+        confirmationModal?.Hide();
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/"); // Retour à la page précédente
+    }
+}

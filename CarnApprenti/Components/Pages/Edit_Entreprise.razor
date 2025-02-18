@@ -1,0 +1,111 @@
+﻿@page "/edit_entreprise/{entrepriseId}"
+@using Microsoft.AspNetCore.Components.Forms
+@using static CarnApprenti.LivretApprentissageContext
+@inject DatabaseService DatabaseService
+@inject NavigationManager Navigation
+@using CarnApprenti.Components.Layout
+
+<div class="sidebar">
+    <NavMenu />
+</div>
+
+<div style="margin-left:250px">
+
+
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+
+    <h3 class="text-center mb-4">Modifier une Entreprise</h3>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
+
+    @if (entrepriseToEdit == null)
+    {
+        <p class="text-center">Entreprise non trouvée ou en cours de chargement...</p>
+    }
+    else
+    {
+        <EditForm Model="entrepriseToEdit" class="text-center" OnValidSubmit="HandleEditEntreprise">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger mb-3" />
+
+             
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Nom" class="form-label">Nom</label>
+                    <InputText id="Nom" class="form-control" @bind-Value="entrepriseToEdit.Nom" />
+                </div>
+
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Adresse" class="form-label">Adresse</label>
+                    <InputText id="Adresse" class="form-control" @bind-Value="entrepriseToEdit.Adresse" />
+                </div>
+
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Téléphone" class="form-label">Téléphone</label>
+                    <InputText id="Téléphone" class="form-control" @bind-Value="entrepriseToEdit.Telephone" />
+                </div>
+
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="modeleId" class="form-label">Choisir un tuteur</label>
+                    <InputSelect id="tuteurId" class="form-control" @bind-Value="entrepriseToEdit.UserId">
+
+                        @foreach (var tuteur in tuteurs)
+                        {
+                            <option value="@tuteur.Id">@tuteur.Nom @tuteur.Prenom</option>
+                        }
+                    </InputSelect>
+                </div>
+                <!-- Bouton de soumission -->
+                <button type="submit" class="btn btn-primary mb-3">Modifier</button>
+
+        </EditForm>
+    }
+</div>
+@code {
+    [Parameter] public string? entrepriseId { get; set; }
+
+    private Entreprise? entrepriseToEdit;
+    private List<User>? tuteurs;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            entrepriseToEdit = await DatabaseService.GetEntrepriseByIdAsync(ulong.Parse(entrepriseId));
+            tuteurs = await DatabaseService.GetTuteursAsync();        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Erreur lors du chargement des informations : {ex.Message}");
+            Navigation.NavigateTo("/entreprises");
+        }
+    }
+
+    private async Task HandleEditEntreprise()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(entrepriseToEdit?.Nom))
+            {
+                errorMessage = "Veuillez entrer un nom.";
+                return;
+            }
+            await DatabaseService.UpdateEntrepriseAsync(entrepriseToEdit);
+            Navigation.NavigateTo("/entreprises");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Erreur lors de la mise à jour de l'entreprise : {ex.Message}");
+            // Vous pouvez ajouter ici un message d'erreur à afficher à l'utilisateur
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/entreprises");
+    }
+}

@@ -7,6 +7,7 @@ using MySql.Data.MySqlClient;
 using System.Data;
 using System.Globalization;
 using System.Diagnostics;
+using CarnApprenti.Components.Pages;
 
 namespace CarnApprenti
 {
@@ -1165,5 +1166,115 @@ namespace CarnApprenti
             }
         }
 
+        public async Task<List<LivretApprentissageContext.Entreprise>> GetEntreprisesAsync()
+        {
+            try
+            {
+                return await _context.Entreprises
+                    .Include(e => e.User)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Erreur lors de la récupération des entreprises : {ex.Message}", ex);
+            }
+        }
+
+        public async Task DeleteEntrepriseAsync(ulong entrepriseId)
+        {
+            try
+            {
+                var entreprise = await _context.Entreprises.FindAsync(entrepriseId) ?? throw new Exception("Entreprise introuvable.");
+                _context.Entreprises.Remove(entreprise);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Erreur lors de la suppression du site : {ex.Message}", ex);
+            }
+        }
+
+        public async Task AddEntrepriseAsync(LivretApprentissageContext.Entreprise newEntreprise)
+        {
+            try
+            {
+                // Ajouter le nouveau site à la base de données
+                await _context.Entreprises.AddAsync(newEntreprise);
+
+                // Sauvegarder les changements
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Erreur lors de l'ajout de l'entreprise : {ex.Message}", ex);
+            }
+        }
+
+        public async Task<List<User>> GetTuteursAsync()
+        {
+            try
+            {
+                // Step 1: Retrieve all assigned roles with the role name "referent"
+                var tuteurIds = await _context.AssignedRoles
+                    .Include(ar => ar.Role)  // Include the related Role entity
+                    .Where(ar => ar.Role.Name == "tuteur")
+                    .Select(ar => ar.EntityId)  // Select the IDs of users with the "referent" role
+                    .ToListAsync();
+
+                // Step 2: Retrieve users whose IDs match the referent IDs
+                var users = await _context.Users
+                    .Where(u => tuteurIds.Contains(u.Id))  // Filter users based on the referent IDs
+                    .ToListAsync();
+
+                return users;
+            }
+            catch (Exception ex)
+            {
+                // Log the exception or handle it as needed
+                throw new Exception("Erreur lors de la récupération des tuteurs.", ex);
+            }
+        }
+
+        public async Task<Entreprise?> GetEntrepriseByIdAsync(ulong entrepriseId)
+        {
+            try
+            {
+                var entreprise = await _context.Entreprises
+                    .Include(e => e.User)
+                    .Where(f => f.Id == entrepriseId)  // Recherche un formateur avec cet ID
+                    .FirstOrDefaultAsync();
+
+                return entreprise;  // Retourne le formateur trouvé ou null si aucun formateur n'est trouvé
+            }
+            catch (Exception ex)
+            {
+                // Log l'erreur ou gérer comme nécessaire
+                throw new Exception($"Erreur lors de la récupération de l'entreprise : {ex.Message}", ex);
+            }
+        }
+
+        public async Task UpdateEntrepriseAsync(Entreprise entreprise)
+        {
+            // Vérifier si la matière existe dans la base de données
+            var existingEntreprise = await _context.Entreprises
+                                                  .Include(m => m.User) // Inclure le formateur pour éviter les problèmes de navigation
+                                                  .FirstOrDefaultAsync(m => m.Id == entreprise.Id);
+            if (existingEntreprise != null)
+            {
+                // Mettre à jour les propriétés de la matière
+                existingEntreprise.Nom = entreprise.Nom;
+                existingEntreprise.Adresse = entreprise.Adresse;
+                existingEntreprise.Telephone = entreprise.Telephone;
+                existingEntreprise.UserId = entreprise.UserId;
+
+
+                // Sauvegarder les changements dans la base de données
+                await _context.SaveChangesAsync();
+            }
+            else
+            {
+                throw new Exception("Entreprise non trouvée");
+            }
+        }
     }
 }

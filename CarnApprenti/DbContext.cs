@@ -38,6 +38,7 @@ namespace CarnApprenti
         public DbSet<Personnel> Personnels { get; set; }
         public DbSet<GroupeMatiere> GroupeMatieres { get; set; }
         public DbSet<PersonnelSite> PersonnelSites { get; set; }
+        public DbSet<Entreprise> Entreprises { get; set; }
 
         // Fluent API Configurations can be added here (if needed)
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -96,19 +97,19 @@ namespace CarnApprenti
             public ulong LivretId { get; set; }  // LivretId non nullable
 
             [Column("periode")]
-            public string ?Periode { get; set; }
+            public string? Periode { get; set; }
 
             [Column("activites_pro")]
-            public string ?ActivitesPro { get; set; }
+            public string? ActivitesPro { get; set; }
 
             [Column("observations_apprenti")]
-            public string ?ObservationsApprenti { get; set; }
+            public string? ObservationsApprenti { get; set; }
 
             [Column("observations_tuteur")]
-            public string ?ObservationsTuteur { get; set; }
+            public string? ObservationsTuteur { get; set; }
 
             [Column("observations_referent")]
-            public string ?ObservationsReferent { get; set; }
+            public string? ObservationsReferent { get; set; }
 
             [Column("created_at")]
             public DateTime CreatedAt { get; set; }  // DateTime non nullable
@@ -125,7 +126,7 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("nom")]
-            public string ?Nom { get; set; }
+            public string? Nom { get; set; }
 
             [Column("created_at")]
             public DateTime? CreatedAt { get; set; }
@@ -143,13 +144,13 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("observation_apprenti_global")]
-            public string ?ObservationApprentiGlobal { get; set; }
+            public string? ObservationApprentiGlobal { get; set; }
 
             [Column("observation_admin")]
-            public string ?ObservationAdmin { get; set; }
+            public string? ObservationAdmin { get; set; }
 
             [Column("lien")]
-            public string ?Lien { get; set; }
+            public string? Lien { get; set; }
 
             [Column("user_id")]
             public ulong? UserId { get; set; }
@@ -163,8 +164,8 @@ namespace CarnApprenti
             [Column("updated_at")]
             public DateTime? UpdatedAt { get; set; }
 
-            public User ?User { get; set; }
-            public Modele ?Modele { get; set; }
+            public User? User { get; set; }
+            public Modele? Modele { get; set; }
         }
 
         [Table("modeles")]
@@ -175,20 +176,20 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("nom")]
-            public string ?Nom { get; set; }
+            public string? Nom { get; set; }
 
             [Column("lien")]
-            public string ?Lien { get; set; }
+            public string? Lien { get; set; }
 
             [Column("groupe_id")]
             public ulong GroupeId { get; set; }
 
-            public Groupe ?Groupe { get; set; }
+            public Groupe? Groupe { get; set; }
 
             [Column("site_id")]
             public ulong SiteId { get; set; }
 
-            public Site ?Site { get; set; }
+            public Site? Site { get; set; }
 
             [Column("created_at")]
             public DateTime? CreatedAt { get; set; }
@@ -205,10 +206,10 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("name")]
-            public string ?Name { get; set; }
+            public string? Name { get; set; }
 
             [Column("title")]
-            public string ?Title { get; set; }
+            public string? Title { get; set; }
 
             [Column("scope")]
             public int? Scope { get; set; }
@@ -218,7 +219,7 @@ namespace CarnApprenti
 
             [Column("updated_at")]
             public DateTime? UpdatedAt { get; set; }
-            public ICollection<AssignedRole> ?AssignedRoles { get; set; }
+            public ICollection<AssignedRole>? AssignedRoles { get; set; }
 
         }
 
@@ -230,7 +231,7 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("nom")]
-            public string ?Nom { get; set; }
+            public string? Nom { get; set; }
 
             [Column("created_at")]
             public DateTime? CreatedAt { get; set; }
@@ -254,22 +255,22 @@ namespace CarnApprenti
             public ulong EntityId { get; set; }
 
             [Column("entity_type")]
-            public string ?EntityType { get; set; }
+            public string? EntityType { get; set; }
 
             [Column("restricted_to_id")]
             public ulong? RestrictedToId { get; set; }
 
             [Column("restricted_to_type")]
-            public string ?RestrictedToType { get; set; }
+            public string? RestrictedToType { get; set; }
 
             [Column("scope")]
             public int? Scope { get; set; }
 
 
-            public virtual Role ?Role { get; set; }
+            public virtual Role? Role { get; set; }
 
             // Navigation vers l'entité liée (qui sera probablement User)
-            public virtual User ?Entity { get; set; }
+            public virtual User? Entity { get; set; }
         }
 
 
@@ -281,14 +282,14 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("nom")]
-            public string ?Nom { get; set; }
+            public string? Nom { get; set; }
 
             [Column("prenom")]
-            public string ?Prenom { get; set; }
+            public string? Prenom { get; set; }
 
             [Column("email")]
             [RegularExpression(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", ErrorMessage = "L'email n'est pas valide.")]
-            public string ?Email { get; set; }
+            public string? Email { get; set; }
 
             [Column("groupe_id")]
             public ulong? GroupeId { get; set; }
@@ -301,10 +302,10 @@ namespace CarnApprenti
 
             [Column("password")]
             [Required]
-            public string ?Password { get; set; }
+            public string? Password { get; set; }
 
             [Column("remember_token")]
-            public string ?RememberToken { get; set; }
+            public string? RememberToken { get; set; }
 
             [Column("created_at")]
             public DateTime? CreatedAt { get; set; }
@@ -312,9 +313,9 @@ namespace CarnApprenti
             [Column("updated_at")]
             public DateTime? UpdatedAt { get; set; }
 
-            public virtual Groupe ?Groupe { get; set; }
-            public virtual User ?Apprenant { get; set; }
-            public virtual List<AssignedRole> ?AssignedRoles { get; set; } // Association des rôles
+            public virtual Groupe? Groupe { get; set; }
+            public virtual User? Apprenant { get; set; }
+            public virtual List<AssignedRole>? AssignedRoles { get; set; } // Association des rôles
 
         }
 
@@ -333,10 +334,10 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("nom")]
-            public string ?Nom { get; set; }
+            public string? Nom { get; set; }
 
             [Column("prenom")]
-            public string ?Prenom { get; set; }
+            public string? Prenom { get; set; }
 
         }
 
@@ -348,12 +349,12 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("nom")]
-            public string ?Nom { get; set; }
+            public string? Nom { get; set; }
 
             [Column("formateur_id")]
             public ulong FormateurId { get; set; }
 
-            public Formateur ?Formateur { get; set; }
+            public Formateur? Formateur { get; set; }
         }
 
         [Table("compositions")]
@@ -364,10 +365,10 @@ namespace CarnApprenti
             public ulong Id { get; set; }
 
             [Column("nom")]
-            public string ?Nom { get; set; }
+            public string? Nom { get; set; }
 
             [Column("lien")]
-            public string ?Lien { get; set; }
+            public string? Lien { get; set; }
 
             [Column("modele_id")]
             public ulong ModeleId { get; set; }
@@ -386,22 +387,22 @@ namespace CarnApprenti
             [Column("id")]
             public ulong Id { get; set; }
 
-            
+
             [Column("nom")]
             public string? Nom { get; set; }
 
-            
+
             [Column("prenom")]
             public string? Prenom { get; set; }
 
-            
+
             [Column("mail")]
             public string? Mail { get; set; }
 
             [Column("description")]
             public string? Description { get; set; }
 
-            
+
             [Column("telephone")]
             public string? Telephone { get; set; }
 
@@ -444,13 +445,36 @@ namespace CarnApprenti
             [Column("matiere_id")]
             public ulong MatiereId { get; set; }
 
-            public Matiere ?Matiere { get; set; }
+            public Matiere? Matiere { get; set; }
 
             [Column("created_at")]
             public DateTime CreatedAt { get; set; }
 
             [Column("updated_at")]
             public DateTime UpdatedAt { get; set; }
+        }
+
+        [Table("entreprises")]
+        public class Entreprise
+        {
+            [Key]
+            [Column("id")]
+            public ulong Id { get; set; }
+
+            [Column("nom")]
+            public string Nom { get; set; }
+
+            [Column("adresse")]
+            public string Adresse { get; set; }
+
+            [Column("telephone")]
+            public string Telephone { get; set; }
+
+            [Column("user_id")]
+            public ulong UserId { get; set; }
+
+           public User User { get; set; }
+
         }
     }
 }

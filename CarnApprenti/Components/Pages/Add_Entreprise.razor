@@ -1,0 +1,102 @@
+﻿@page "/add_entreprise"
+@using static CarnApprenti.LivretApprentissageContext
+@inject NavigationManager Navigation
+@inject DatabaseService DatabaseService
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject IJSRuntime js
+@using CarnApprenti.Components.Layout
+
+<div class="sidebar">
+    <NavMenu />
+</div>
+
+<div style="margin-left:250px">
+
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">← Retour</button>
+
+    <h1 class="text-center mb-4">Ajouter une entreprise</h1>
+
+    @if (errorMessage != null)
+    {
+        <div class="alert alert-danger" role="alert">
+            @errorMessage
+        </div>
+    }
+
+    <div class="container">
+        <div class="form-container">
+            <EditForm Model="@newEntreprise" class="text-center" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <!-- Champs Nom -->
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Nom" class="form-label">Nom</label>
+                    <InputText id="Nom" class="form-control" @bind-Value="newEntreprise.Nom" />
+                </div>
+
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Adresse" class="form-label">Adresse</label>
+                    <InputText id="Adresse" class="form-control" @bind-Value="newEntreprise.Adresse" />
+                </div>
+
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="Téléphone" class="form-label">Téléphone</label>
+                    <InputText id="Téléphone" class="form-control" @bind-Value="newEntreprise.Telephone" />
+                </div>
+
+                <div class="form-group mb-3 w-50 mx-auto">
+                    <label for="modeleId" class="form-label">Choisir un tuteur</label>
+                    <InputSelect id="tuteurId" class="form-control" @bind-Value="newEntreprise.UserId">
+                        <option value="">-- Sélectionnez un tuteur --</option>
+
+                        @foreach (var tuteur in tuteurs)
+                        {
+                            <option value="@tuteur.Id">@tuteur.Nom @tuteur.Prenom</option>
+                        }
+                    </InputSelect>
+                </div>
+                <!-- Bouton de soumission -->
+                <button type="submit" class="btn btn-primary mb-3">Ajouter</button>
+            </EditForm>
+        </div>
+    </div>
+</div>
+@code {
+    private Entreprise newEntreprise = new Entreprise();
+    private string? errorMessage;
+    private List<User> tuteurs = new List<User>();
+
+    protected override async Task OnInitializedAsync() {
+        tuteurs = await DatabaseService.GetTuteursAsync();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(newEntreprise.Nom))
+            {
+                errorMessage = "Veuillez entrer un nom.";
+                return;
+            }
+
+            // Set timestamps
+           
+
+            // Add site to database
+            await DatabaseService.AddEntrepriseAsync(newEntreprise);
+
+            Navigation.NavigateTo("/entreprises");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Une erreur s'est produite lors de l'ajout de l'entreprise : {ex.Message}\n{ex.StackTrace}\n{ex.InnerException?.Message}\n{ex.InnerException?.StackTrace}";
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/entreprises");
+    }
+}
